@@ -8,6 +8,12 @@ on:
       - '**/*.md'
       - 'docs/**'
   workflow_dispatch:
+    inputs:
+      store_version:
+        description: 'Versione MSIX Store (es. 1.0.0.0); vuoto per packaging ordinario GitVersion'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -23,6 +29,7 @@ defaults:
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+  KEEPCLIP_STORE_VERSION: ${{ inputs.store_version }}
 
 jobs:
   version:
@@ -42,6 +49,12 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Restore pinned GitVersion tool
         run: dotnet tool restore
+      - name: Validate optional Store version
+        run: |
+          if ($env:KEEPCLIP_STORE_VERSION) {
+            . ./scripts/Versioning.ps1
+            Assert-KeepClipStoreVersion -Version $env:KEEPCLIP_STORE_VERSION
+          }
       - name: Verify release tags and development version increments
         run: ./scripts/Test-GitVersion.ps1
       - name: Calculate version once for all architectures
@@ -49,7 +62,8 @@ jobs:
         run: |
           $version = ./scripts/Get-Version.ps1 -OutputPath ./artifacts/version/KeepClip.version.json
           "semver=$($version.SemVer)" >> $env:GITHUB_OUTPUT
-          "Version: $($version.SemVer), MSIX: $($version.AssemblySemFileVer), commit: $($version.Sha)" >> $env:GITHUB_STEP_SUMMARY
+          $msixVersion = if ($env:KEEPCLIP_STORE_VERSION) { $env:KEEPCLIP_STORE_VERSION } else { $version.AssemblySemFileVer }
+          "Version: $($version.SemVer), MSIX: $msixVersion, commit: $($version.Sha)" >> $env:GITHUB_STEP_SUMMARY
       - uses: actions/upload-artifact@v6
         with:
           name: KeepClip-version
@@ -90,6 +104,8 @@ jobs:
           }
       - name: Verify version metadata validation
         run: ./scripts/Test-Versioning.ps1
+      - name: Verify Microsoft Store version validation
+        run: ./scripts/Test-StoreVersion.ps1
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v6
@@ -133,7 +149,10 @@ jobs:
       - name: Build and verify portable ZIP
         run: ./scripts/Build-Portable.ps1 -SkipBuild -Architecture ${{ matrix.architecture }} -PublishDirectory ./artifacts/publish-${{ matrix.architecture }} -OutputDirectory ./artifacts/packages
       - name: Build unsigned MSIX
-        run: ./scripts/Build-Package.ps1 -SkipBuild -Architecture ${{ matrix.architecture }} -PublishDirectory ./artifacts/msix-${{ matrix.architecture }} -OutputDirectory ./artifacts/packages
+        run: |
+          $storeArguments = @{}
+          if ($env:KEEPCLIP_STORE_VERSION) { $storeArguments.StoreVersion = $env:KEEPCLIP_STORE_VERSION }
+          ./scripts/Build-Package.ps1 -SkipBuild -Architecture ${{ matrix.architecture }} -PublishDirectory ./artifacts/msix-${{ matrix.architecture }} -OutputDirectory ./artifacts/packages @storeArguments
       - name: Generate package checksums
         run: |
           $packages = @(Get-ChildItem ./artifacts/packages -File | Where-Object Extension -In @('.zip', '.msix'))

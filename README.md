@@ -120,7 +120,7 @@ KeepClip conserva la cronologia **sul dispositivo**, senza account e senza invia
 
 ### Aggiornare un'installazione precedente
 
-Le nuove build usano `%LOCALAPPDATA%\KeepClip`, l'identità MSIX `KeepClip.Personal` e il publisher `CN=KeepClip`. Un pacchetto con un'identità precedente viene considerato un'app distinta da Windows.
+La versione portabile usa normalmente `%LOCALAPPDATA%\KeepClip`. Le nuove build MSIX usano l'identità Store `15287gdetra.KeepClip`, il publisher `CN=58095AEE-5C8D-437E-90EB-9B5E2E56469C` e il nome publisher `gdetra`. Le precedenti build MSIX con identità `KeepClip.Personal` e publisher `CN=KeepClip` sono considerate un'app distinta da Windows.
 
 Per conservare la cronologia, annota il percorso dati nelle impostazioni della versione precedente e chiudi entrambe le versioni. Conserva una copia di sicurezza dell'intera cartella dati, poi trasferiscine il contenuto nella cartella della nuova installazione prima di usarla. Se la nuova cartella contiene già una cronologia, conservala separatamente: non è previsto l'accorpamento di due database. Reimposta l'avvio automatico dalla nuova versione e disattiva la precedente voce nelle impostazioni di avvio di Windows. La migrazione non avviene automaticamente.
 
@@ -134,6 +134,8 @@ La cronologia conserva fino a **200 elementi e 250 MiB**. Le immagini sono norma
 
 ## Sviluppo
 
+I materiali per la pubblicazione sul Microsoft Store sono in [docs/store/README.md](docs/store/README.md); l'[informativa privacy](docs/privacy.md) descrive il trattamento locale dei dati.
+
 Servono lo SDK indicato in [`global.json`](global.json), il runtime .NET 8 per GitVersion e gli strumenti Windows/WinUI del Windows SDK. Apri [`KeepClip.slnx`](KeepClip.slnx) in un ambiente compatibile.
 
 ```powershell
@@ -145,6 +147,8 @@ dotnet test tests/KeepClip.Windows.Tests --no-restore
 ```
 
 `-Architecture` accetta `x64`, `arm64` e `x86`. `Build-Package.ps1` genera MSIX; `Publish-App.ps1` produce la cartella con eseguibile e metadati di versione. Con `-SkipBuild` usa un publish generato da quest'ultimo script. Mantieni separati i publish per ZIP e MSIX, perché il packaging MSIX aggiunge il manifest di installazione. Le versioni NuGet sono centralizzate in [`Directory.Packages.props`](Directory.Packages.props).
+
+Per lo Store usa `Build-Package.ps1 -StoreVersion 1.0.0.0` (o una versione successiva): il parametro applica al manifest MSIX una versione valida per lo Store, distinta dalla versione GitVersion dell'eseguibile. L'avvio manuale di Windows CI su `main` espone lo stesso parametro nel campo `store_version`. Vedi la [guida Store](docs/store/README.md) per comandi, progressione delle versioni e pubblicazione dell'informativa privacy.
 
 ### Versioni da Git
 
