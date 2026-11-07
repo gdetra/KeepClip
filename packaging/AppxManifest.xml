@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" IgnorableNamespaces="uap desktop rescap">
-  <Identity Name="KeepClip.Personal" Publisher="CN=KeepClip" Version="0.1.0.0" ProcessorArchitecture="x64"/>
-  <Properties><DisplayName>KeepClip</DisplayName><PublisherDisplayName>KeepClip</PublisherDisplayName><Logo>Assets\StoreLogo.png</Logo><Description>Cronologia personale degli appunti</Description></Properties>
+  <Identity Name="15287gdetra.KeepClip" Publisher="CN=58095AEE-5C8D-437E-90EB-9B5E2E56469C" Version="0.1.0.0" ProcessorArchitecture="x64"/>
+  <Properties><DisplayName>KeepClip</DisplayName><PublisherDisplayName>gdetra</PublisherDisplayName><Logo>Assets\StoreLogo.png</Logo><Description>Cronologia personale degli appunti</Description></Properties>
   <Dependencies><TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.28000.0"/></Dependencies>
   <Resources><Resource Language="it-IT"/></Resources>
   <Applications><Application Id="App" Executable="KeepClip.exe" EntryPoint="Windows.FullTrustApplication">

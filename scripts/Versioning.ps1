@@ -1,3 +1,14 @@
+function Assert-KeepClipStoreVersion {
+    param([AllowEmptyString()][string]$Version)
+    if ($Version -cnotmatch '\A[1-9][0-9]{0,4}\.(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})\.0\z') {
+        throw 'Versione Store non valida: usa Major.Minor.Build.0, con Major maggiore di zero (esempio: 1.0.0.0).'
+    }
+    foreach ($part in $Version.Split('.')) {
+        if ([int]$part -gt 65535) { throw 'Versione Store non valida: ogni componente deve essere al massimo 65535.' }
+    }
+    return $Version
+}
+
 function Assert-KeepClipVersion {
     param([Parameter(Mandatory=$true)]$Version)
     if ($Version.SemVer -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$') { throw 'SemVer non valida.' }
