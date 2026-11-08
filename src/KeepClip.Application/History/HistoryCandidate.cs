@@ -1,21 +1,21 @@
-using KeepClip.Domain.History;
 using System.Security.Cryptography;
 using System.Text;
+using KeepClip.Domain.History;
 
 namespace KeepClip.Application.History;
 
 internal sealed class HistoryCandidate
 {
-    readonly ClipContent content;
-    readonly byte[] identityBytes;
+    private readonly ClipContent _content;
+    private readonly byte[] _identityBytes;
 
-    HistoryCandidate(ClipContent content, byte[] identityBytes)
+    private HistoryCandidate(ClipContent content, byte[] identityBytes)
     {
-        this.content = content;
-        this.identityBytes = identityBytes;
+        _content = content;
+        _identityBytes = identityBytes;
     }
 
-    public byte[]? ImageBytes => content.Kind == ClipKind.Image ? identityBytes : null;
+    public byte[]? ImageBytes => _content.Kind == ClipKind.Image ? _identityBytes : null;
 
     public static (HistoryCandidate? Candidate, string? Rejection) Prepare(ClipContent content)
     {
@@ -26,9 +26,7 @@ internal sealed class HistoryCandidate
             case ClipKind.Image when content.Png is { Length: > 0 } png:
                 return (new(content, png), null);
             case ClipKind.Files:
-                return FileReferences.Valid(content.Files)
-                    ? (new(content, FileReferences.Identity(content.Files!)), null)
-                    : (null, "Selezione di file non valida: sono supportati fino a 1000 file o cartelle con percorso disponibile.");
+                return FileReferences.Valid(content.Files) ? (new(content, FileReferences.Identity(content.Files!)), null) : (null, "Selezione di file non valida: sono supportati fino a 1000 file o cartelle con percorso disponibile.");
             default:
                 return (null, null);
         }
@@ -36,9 +34,17 @@ internal sealed class HistoryCandidate
 
     public ClipEntry CreateEntry(Guid id, DateTimeOffset copiedAt, ClipSource? source)
     {
-        var hash = Convert.ToHexString(SHA256.HashData(identityBytes));
-        return new(id, content.Kind, hash, copiedAt, false,
-            content.Kind == ClipKind.Text ? content.Text : null, null, identityBytes.LongLength, source,
-            content.Kind == ClipKind.Files ? content.Files!.ToArray() : null);
+        var hash = Convert.ToHexString(SHA256.HashData(_identityBytes));
+        return new(
+            id,
+            _content.Kind,
+            hash,
+            copiedAt,
+            false,
+            _content.Kind == ClipKind.Text ? _content.Text : null,
+            null,
+            _identityBytes.LongLength,
+            source,
+            _content.Kind == ClipKind.Files ? _content.Files!.ToArray() : null);
     }
 }
