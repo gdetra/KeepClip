@@ -1,13 +1,14 @@
-using KeepClip.Application;
 using System.Windows.Threading;
+using KeepClip.Application;
+
 namespace KeepClip.App.Clipboard;
 
 internal sealed class StaClipboardExecutor : IClipboardExecutor
 {
-    readonly TaskCompletionSource<Dispatcher> ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    readonly object lifetime = new();
-    bool disposed;
-    int active;
+    private readonly TaskCompletionSource<Dispatcher> _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly object _lifetime = new();
+    private bool _disposed;
+    private int _active;
 
     public StaClipboardExecutor()
     {
@@ -17,11 +18,18 @@ internal sealed class StaClipboardExecutor : IClipboardExecutor
             {
                 var dispatcher = Dispatcher.CurrentDispatcher;
                 SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(dispatcher));
-                ready.SetResult(dispatcher);
+                _ready.SetResult(dispatcher);
                 Dispatcher.Run();
             }
-            catch (Exception ex) { ready.TrySetException(ex); }
-        }) { IsBackground = true, Name = "KeepClip clipboard STA" };
+            catch (Exception ex)
+            {
+                _ready.TrySetException(ex);
+            }
+        })
+        {
+            IsBackground = true,
+            Name = "KeepClip clipboard STA"
+        };
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
     }
@@ -29,45 +37,66 @@ internal sealed class StaClipboardExecutor : IClipboardExecutor
     public async Task<T> RunAsync<T>(Func<Task<T>> action, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        lock (lifetime)
+        lock (_lifetime)
         {
-            ObjectDisposedException.ThrowIf(disposed, this);
-            active++;
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _active++;
         }
+
         try
         {
-            var dispatcher = await ready.Task.WaitAsync(ct).ConfigureAwait(false);
-            var pending = dispatcher.InvokeAsync(() =>
-            {
-                ct.ThrowIfCancellationRequested();
-                return action();
-            }, DispatcherPriority.Normal, ct);
+            var dispatcher = await _ready.Task.WaitAsync(ct).ConfigureAwait(false);
+            var pending = dispatcher.InvokeAsync(
+                () =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    return action();
+                },
+                DispatcherPriority.Normal,
+                ct);
             // Wait until the operation actually ends. A Windows/provider read
             // cannot be forcibly cancelled; releasing early would allow overlap.
             return await pending.Task.Unwrap().ConfigureAwait(false);
         }
         finally
         {
-            lock (lifetime)
+            lock (_lifetime)
             {
-                active--;
-                if (disposed && active == 0) StopDispatcher();
+                _active--;
+                if (_disposed && _active == 0)
+                {
+                    StopDispatcher();
+                }
             }
         }
     }
 
     public void Dispose()
     {
-        lock (lifetime)
+        lock (_lifetime)
         {
-            if (disposed) return;
-            disposed = true;
-            if (active == 0) StopDispatcher();
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            if (_active == 0)
+            {
+                StopDispatcher();
+            }
         }
     }
 
-    void StopDispatcher() => _ = ready.Task.ContinueWith(task =>
-    {
-        if (task.IsCompletedSuccessfully) task.Result.BeginInvokeShutdown(DispatcherPriority.Background);
-    }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
+    private void StopDispatcher() => _ = _ready.Task.ContinueWith(
+        task =>
+        {
+            if (task.IsCompletedSuccessfully)
+            {
+                task.Result.BeginInvokeShutdown(DispatcherPriority.Background);
+            }
+        },
+        CancellationToken.None,
+        TaskContinuationOptions.None,
+        TaskScheduler.Default);
 }

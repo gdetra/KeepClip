@@ -1,4 +1,5 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project
+  Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
@@ -8,15 +9,28 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/KeepClip.Application/KeepClip.Application.csproj" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="xunit" />
-    <PackageReference Include="xunit.runner.visualstudio" />
+    <ProjectReference
+      Include="../../src/KeepClip.Application/KeepClip.Application.csproj" />
+    <PackageReference
+      Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference
+      Include="xunit" />
+    <PackageReference
+      Include="xunit.runner.visualstudio" />
   </ItemGroup>
   <ItemGroup>
-    <Using Include="Xunit" />
-    <Compile Include="../../src/KeepClip.App/Shelf/HeaderIcon.cs" Link="Shelf/HeaderIcon.cs" />
-    <Compile Include="../../src/KeepClip.App/Clipboard/ClipboardImageCodec.cs" Link="Clipboard/ClipboardImageCodec.cs" />
-    <Compile Include="../../src/KeepClip.App/Clipboard/StaClipboardExecutor.cs" Link="Clipboard/StaClipboardExecutor.cs" />
+    <Using
+      Include="Xunit" />
+    <Using
+      Include="System.IO" />
+    <Compile
+      Include="../../src/KeepClip.App/Shelf/HeaderIcon.cs"
+      Link="Shelf/HeaderIcon.cs" />
+    <Compile
+      Include="../../src/KeepClip.App/Clipboard/ClipboardImageCodec.cs"
+      Link="Clipboard/ClipboardImageCodec.cs" />
+    <Compile
+      Include="../../src/KeepClip.App/Clipboard/StaClipboardExecutor.cs"
+      Link="Clipboard/StaClipboardExecutor.cs" />
   </ItemGroup>
 </Project>

@@ -24,7 +24,11 @@ public class WindowsVHotkeyTests
     {
         var gesture = new WindowsVGesture();
         var calls = 0;
-        bool Invoke() { calls++; return true; }
+        bool Invoke()
+        {
+            calls++;
+            return true;
+        }
 
         Assert.True(gesture.Handle(down: true, windowsOnly: true, Invoke));
         Assert.True(gesture.Handle(down: true, windowsOnly: true, Invoke));
@@ -41,19 +45,23 @@ public class WindowsVHotkeyTests
         gesture.Reset(vAlreadyDown: true);
         Assert.False(gesture.Handle(down: true, windowsOnly: true, () => throw new InvalidOperationException()));
         Assert.False(gesture.Handle(down: false, windowsOnly: true, () => throw new InvalidOperationException()));
-
         Assert.False(gesture.Handle(down: true, windowsOnly: true, () => false));
         Assert.False(gesture.Handle(down: true, windowsOnly: true, () => throw new InvalidOperationException()));
         Assert.False(gesture.Handle(down: false, windowsOnly: true, () => throw new InvalidOperationException()));
         Assert.True(gesture.Handle(down: true, windowsOnly: true, () => true));
     }
 
-    sealed class TemporarySettingsDirectory : IDisposable
+    private sealed class TemporarySettingsDirectory : IDisposable
     {
         public string Path { get; } = Directory.CreateTempSubdirectory("keepclip-win-v-").FullName;
+
         public void Dispose()
         {
-            foreach (var file in Directory.EnumerateFiles(Path)) File.Delete(file);
+            foreach (var file in Directory.EnumerateFiles(Path))
+            {
+                File.Delete(file);
+            }
+
             Directory.Delete(Path);
         }
     }

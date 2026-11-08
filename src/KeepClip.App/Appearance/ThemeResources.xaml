@@ -1,61 +1,181 @@
-<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <SolidColorBrush x:Key="KeepClipPageBrush" Color="#17181D"/>
-  <SolidColorBrush x:Key="KeepClipSurfaceBrush" Color="#25262E"/>
-  <SolidColorBrush x:Key="KeepClipHeaderBrush" Color="#362B32"/>
-  <SolidColorBrush x:Key="KeepClipTextBrush" Color="#F8F8FC"/>
-  <SolidColorBrush x:Key="KeepClipSecondaryTextBrush" Color="#BBBCC5"/>
-  <SolidColorBrush x:Key="KeepClipHeaderTextBrush" Color="#FFFFFF"/>
-  <SolidColorBrush x:Key="KeepClipBorderBrush" Color="#52535A"/>
-  <SolidColorBrush x:Key="KeepClipAccentBrush" Color="#FF6B5E"/>
-  <SolidColorBrush x:Key="KeepClipAccentTextBrush" Color="#FF6B5E"/>
-  <SolidColorBrush x:Key="KeepClipAccentForegroundBrush" Color="#000000"/>
-  <SolidColorBrush x:Key="KeepClipAccentHoverBrush" Color="#FF7A6E"/>
-  <SolidColorBrush x:Key="KeepClipAccentPressedBrush" Color="#FF857B"/>
-  <SolidColorBrush x:Key="KeepClipSelectionBrush" Color="#3F2E34"/>
-  <StaticResource x:Key="AccentFillColorDefaultBrush" ResourceKey="KeepClipAccentBrush"/>
-  <StaticResource x:Key="AccentFillColorSecondaryBrush" ResourceKey="KeepClipAccentHoverBrush"/>
-  <StaticResource x:Key="AccentFillColorTertiaryBrush" ResourceKey="KeepClipAccentPressedBrush"/>
-  <StaticResource x:Key="AccentTextFillColorPrimaryBrush" ResourceKey="KeepClipAccentTextBrush"/>
-  <StaticResource x:Key="AccentTextFillColorSecondaryBrush" ResourceKey="KeepClipAccentTextBrush"/>
-  <StaticResource x:Key="TextOnAccentFillColorPrimaryBrush" ResourceKey="KeepClipAccentForegroundBrush"/>
-  <StaticResource x:Key="TextOnAccentFillColorSecondaryBrush" ResourceKey="KeepClipAccentForegroundBrush"/>
-  <StaticResource x:Key="AccentButtonBackground" ResourceKey="KeepClipAccentBrush"/>
-  <StaticResource x:Key="AccentButtonBackgroundPointerOver" ResourceKey="KeepClipAccentHoverBrush"/>
-  <StaticResource x:Key="AccentButtonBackgroundPressed" ResourceKey="KeepClipAccentPressedBrush"/>
-  <StaticResource x:Key="AccentButtonForeground" ResourceKey="KeepClipAccentForegroundBrush"/>
-  <StaticResource x:Key="AccentButtonForegroundPointerOver" ResourceKey="KeepClipAccentForegroundBrush"/>
-  <StaticResource x:Key="AccentButtonForegroundPressed" ResourceKey="KeepClipAccentForegroundBrush"/>
-  <StaticResource x:Key="SliderThumbBackground" ResourceKey="KeepClipAccentBrush"/>
-  <StaticResource x:Key="SliderThumbBackgroundPointerOver" ResourceKey="KeepClipAccentHoverBrush"/>
-  <StaticResource x:Key="SliderThumbBackgroundPressed" ResourceKey="KeepClipAccentPressedBrush"/>
-  <StaticResource x:Key="SliderTrackValueFill" ResourceKey="KeepClipAccentBrush"/>
-  <StaticResource x:Key="SliderTrackValueFillPointerOver" ResourceKey="KeepClipAccentHoverBrush"/>
-  <StaticResource x:Key="SliderTrackValueFillPressed" ResourceKey="KeepClipAccentPressedBrush"/>
-  <StaticResource x:Key="ToggleSwitchFillOn" ResourceKey="KeepClipAccentBrush"/>
-  <StaticResource x:Key="ToggleSwitchFillOnPointerOver" ResourceKey="KeepClipAccentHoverBrush"/>
-  <StaticResource x:Key="ToggleSwitchFillOnPressed" ResourceKey="KeepClipAccentPressedBrush"/>
-  <StaticResource x:Key="ToggleSwitchKnobFillOn" ResourceKey="KeepClipAccentForegroundBrush"/>
-  <StaticResource x:Key="ToggleSwitchKnobFillOnPointerOver" ResourceKey="KeepClipAccentForegroundBrush"/>
-  <StaticResource x:Key="ToggleSwitchKnobFillOnPressed" ResourceKey="KeepClipAccentForegroundBrush"/>
-  <StaticResource x:Key="ToggleButtonBackgroundChecked" ResourceKey="KeepClipAccentBrush"/>
-  <StaticResource x:Key="ToggleButtonBackgroundCheckedPointerOver" ResourceKey="KeepClipAccentHoverBrush"/>
-  <StaticResource x:Key="ToggleButtonBackgroundCheckedPressed" ResourceKey="KeepClipAccentPressedBrush"/>
-  <StaticResource x:Key="ToggleButtonForegroundChecked" ResourceKey="KeepClipAccentForegroundBrush"/>
-  <StaticResource x:Key="ToggleButtonForegroundCheckedPointerOver" ResourceKey="KeepClipAccentForegroundBrush"/>
-  <StaticResource x:Key="ToggleButtonForegroundCheckedPressed" ResourceKey="KeepClipAccentForegroundBrush"/>
-  <StaticResource x:Key="CheckBoxCheckBackgroundFillChecked" ResourceKey="KeepClipAccentBrush"/>
-  <StaticResource x:Key="CheckBoxCheckBackgroundFillCheckedPointerOver" ResourceKey="KeepClipAccentHoverBrush"/>
-  <StaticResource x:Key="CheckBoxCheckBackgroundFillCheckedPressed" ResourceKey="KeepClipAccentPressedBrush"/>
-  <StaticResource x:Key="CheckBoxCheckBackgroundStrokeChecked" ResourceKey="KeepClipAccentBrush"/>
-  <StaticResource x:Key="CheckBoxCheckBackgroundStrokeCheckedPointerOver" ResourceKey="KeepClipAccentHoverBrush"/>
-  <StaticResource x:Key="CheckBoxCheckBackgroundStrokeCheckedPressed" ResourceKey="KeepClipAccentPressedBrush"/>
-  <StaticResource x:Key="CheckBoxCheckGlyphForegroundChecked" ResourceKey="KeepClipAccentForegroundBrush"/>
-  <StaticResource x:Key="CheckBoxCheckGlyphForegroundCheckedPointerOver" ResourceKey="KeepClipAccentForegroundBrush"/>
-  <StaticResource x:Key="CheckBoxCheckGlyphForegroundCheckedPressed" ResourceKey="KeepClipAccentForegroundBrush"/>
-  <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="KeepClipAccentBrush"/>
-  <StaticResource x:Key="GridViewItemSelectedBorderBrush" ResourceKey="KeepClipAccentBrush"/>
-  <StaticResource x:Key="GridViewItemBackgroundSelected" ResourceKey="KeepClipSelectionBrush"/>
-  <StaticResource x:Key="GridViewItemBackgroundSelectedPointerOver" ResourceKey="KeepClipSelectionBrush"/>
-  <StaticResource x:Key="GridViewItemBackgroundSelectedPressed" ResourceKey="KeepClipSelectionBrush"/>
-  <StaticResource x:Key="ListViewItemSelectionIndicatorBrush" ResourceKey="KeepClipAccentBrush"/>
+<ResourceDictionary
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <SolidColorBrush
+    x:Key="KeepClipPageBrush"
+    Color="#17181D" />
+  <SolidColorBrush
+    x:Key="KeepClipSurfaceBrush"
+    Color="#25262E" />
+  <SolidColorBrush
+    x:Key="KeepClipHeaderBrush"
+    Color="#362B32" />
+  <SolidColorBrush
+    x:Key="KeepClipTextBrush"
+    Color="#F8F8FC" />
+  <SolidColorBrush
+    x:Key="KeepClipSecondaryTextBrush"
+    Color="#BBBCC5" />
+  <SolidColorBrush
+    x:Key="KeepClipHeaderTextBrush"
+    Color="#FFFFFF" />
+  <SolidColorBrush
+    x:Key="KeepClipBorderBrush"
+    Color="#52535A" />
+  <SolidColorBrush
+    x:Key="KeepClipAccentBrush"
+    Color="#FF6B5E" />
+  <SolidColorBrush
+    x:Key="KeepClipAccentTextBrush"
+    Color="#FF6B5E" />
+  <SolidColorBrush
+    x:Key="KeepClipAccentForegroundBrush"
+    Color="#000000" />
+  <SolidColorBrush
+    x:Key="KeepClipAccentHoverBrush"
+    Color="#FF7A6E" />
+  <SolidColorBrush
+    x:Key="KeepClipAccentPressedBrush"
+    Color="#FF857B" />
+  <SolidColorBrush
+    x:Key="KeepClipSelectionBrush"
+    Color="#3F2E34" />
+  <StaticResource
+    x:Key="AccentFillColorDefaultBrush"
+    ResourceKey="KeepClipAccentBrush" />
+  <StaticResource
+    x:Key="AccentFillColorSecondaryBrush"
+    ResourceKey="KeepClipAccentHoverBrush" />
+  <StaticResource
+    x:Key="AccentFillColorTertiaryBrush"
+    ResourceKey="KeepClipAccentPressedBrush" />
+  <StaticResource
+    x:Key="AccentTextFillColorPrimaryBrush"
+    ResourceKey="KeepClipAccentTextBrush" />
+  <StaticResource
+    x:Key="AccentTextFillColorSecondaryBrush"
+    ResourceKey="KeepClipAccentTextBrush" />
+  <StaticResource
+    x:Key="TextOnAccentFillColorPrimaryBrush"
+    ResourceKey="KeepClipAccentForegroundBrush" />
+  <StaticResource
+    x:Key="TextOnAccentFillColorSecondaryBrush"
+    ResourceKey="KeepClipAccentForegroundBrush" />
+  <StaticResource
+    x:Key="AccentButtonBackground"
+    ResourceKey="KeepClipAccentBrush" />
+  <StaticResource
+    x:Key="AccentButtonBackgroundPointerOver"
+    ResourceKey="KeepClipAccentHoverBrush" />
+  <StaticResource
+    x:Key="AccentButtonBackgroundPressed"
+    ResourceKey="KeepClipAccentPressedBrush" />
+  <StaticResource
+    x:Key="AccentButtonForeground"
+    ResourceKey="KeepClipAccentForegroundBrush" />
+  <StaticResource
+    x:Key="AccentButtonForegroundPointerOver"
+    ResourceKey="KeepClipAccentForegroundBrush" />
+  <StaticResource
+    x:Key="AccentButtonForegroundPressed"
+    ResourceKey="KeepClipAccentForegroundBrush" />
+  <StaticResource
+    x:Key="SliderThumbBackground"
+    ResourceKey="KeepClipAccentBrush" />
+  <StaticResource
+    x:Key="SliderThumbBackgroundPointerOver"
+    ResourceKey="KeepClipAccentHoverBrush" />
+  <StaticResource
+    x:Key="SliderThumbBackgroundPressed"
+    ResourceKey="KeepClipAccentPressedBrush" />
+  <StaticResource
+    x:Key="SliderTrackValueFill"
+    ResourceKey="KeepClipAccentBrush" />
+  <StaticResource
+    x:Key="SliderTrackValueFillPointerOver"
+    ResourceKey="KeepClipAccentHoverBrush" />
+  <StaticResource
+    x:Key="SliderTrackValueFillPressed"
+    ResourceKey="KeepClipAccentPressedBrush" />
+  <StaticResource
+    x:Key="ToggleSwitchFillOn"
+    ResourceKey="KeepClipAccentBrush" />
+  <StaticResource
+    x:Key="ToggleSwitchFillOnPointerOver"
+    ResourceKey="KeepClipAccentHoverBrush" />
+  <StaticResource
+    x:Key="ToggleSwitchFillOnPressed"
+    ResourceKey="KeepClipAccentPressedBrush" />
+  <StaticResource
+    x:Key="ToggleSwitchKnobFillOn"
+    ResourceKey="KeepClipAccentForegroundBrush" />
+  <StaticResource
+    x:Key="ToggleSwitchKnobFillOnPointerOver"
+    ResourceKey="KeepClipAccentForegroundBrush" />
+  <StaticResource
+    x:Key="ToggleSwitchKnobFillOnPressed"
+    ResourceKey="KeepClipAccentForegroundBrush" />
+  <StaticResource
+    x:Key="ToggleButtonBackgroundChecked"
+    ResourceKey="KeepClipAccentBrush" />
+  <StaticResource
+    x:Key="ToggleButtonBackgroundCheckedPointerOver"
+    ResourceKey="KeepClipAccentHoverBrush" />
+  <StaticResource
+    x:Key="ToggleButtonBackgroundCheckedPressed"
+    ResourceKey="KeepClipAccentPressedBrush" />
+  <StaticResource
+    x:Key="ToggleButtonForegroundChecked"
+    ResourceKey="KeepClipAccentForegroundBrush" />
+  <StaticResource
+    x:Key="ToggleButtonForegroundCheckedPointerOver"
+    ResourceKey="KeepClipAccentForegroundBrush" />
+  <StaticResource
+    x:Key="ToggleButtonForegroundCheckedPressed"
+    ResourceKey="KeepClipAccentForegroundBrush" />
+  <StaticResource
+    x:Key="CheckBoxCheckBackgroundFillChecked"
+    ResourceKey="KeepClipAccentBrush" />
+  <StaticResource
+    x:Key="CheckBoxCheckBackgroundFillCheckedPointerOver"
+    ResourceKey="KeepClipAccentHoverBrush" />
+  <StaticResource
+    x:Key="CheckBoxCheckBackgroundFillCheckedPressed"
+    ResourceKey="KeepClipAccentPressedBrush" />
+  <StaticResource
+    x:Key="CheckBoxCheckBackgroundStrokeChecked"
+    ResourceKey="KeepClipAccentBrush" />
+  <StaticResource
+    x:Key="CheckBoxCheckBackgroundStrokeCheckedPointerOver"
+    ResourceKey="KeepClipAccentHoverBrush" />
+  <StaticResource
+    x:Key="CheckBoxCheckBackgroundStrokeCheckedPressed"
+    ResourceKey="KeepClipAccentPressedBrush" />
+  <StaticResource
+    x:Key="CheckBoxCheckGlyphForegroundChecked"
+    ResourceKey="KeepClipAccentForegroundBrush" />
+  <StaticResource
+    x:Key="CheckBoxCheckGlyphForegroundCheckedPointerOver"
+    ResourceKey="KeepClipAccentForegroundBrush" />
+  <StaticResource
+    x:Key="CheckBoxCheckGlyphForegroundCheckedPressed"
+    ResourceKey="KeepClipAccentForegroundBrush" />
+  <StaticResource
+    x:Key="TextControlBorderBrushFocused"
+    ResourceKey="KeepClipAccentBrush" />
+  <StaticResource
+    x:Key="GridViewItemSelectedBorderBrush"
+    ResourceKey="KeepClipAccentBrush" />
+  <StaticResource
+    x:Key="GridViewItemBackgroundSelected"
+    ResourceKey="KeepClipSelectionBrush" />
+  <StaticResource
+    x:Key="GridViewItemBackgroundSelectedPointerOver"
+    ResourceKey="KeepClipSelectionBrush" />
+  <StaticResource
+    x:Key="GridViewItemBackgroundSelectedPressed"
+    ResourceKey="KeepClipSelectionBrush" />
+  <StaticResource
+    x:Key="ListViewItemSelectionIndicatorBrush"
+    ResourceKey="KeepClipAccentBrush" />
 </ResourceDictionary>

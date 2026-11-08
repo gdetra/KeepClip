@@ -1,4 +1,3 @@
-using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using KeepClip.App.Clipboard;
@@ -16,7 +15,6 @@ public class ClipboardImageCodecTests
         encoder.Frames.Add(BitmapFrame.Create(image));
         using var stream = new MemoryStream();
         encoder.Save(stream);
-
         var dib = ClipboardImageCodec.ToDibV5(stream.ToArray());
         var restored = ClipboardImageCodec.Normalize(dib, isDib: true);
         using var restoredStream = new MemoryStream(restored);
@@ -29,12 +27,7 @@ public class ClipboardImageCodecTests
     [Fact]
     public void ReadsStandardBottomUp24BitDib()
     {
-        byte[] dib =
-        [
-            40,0,0,0, 1,0,0,0, 2,0,0,0, 1,0,24,0,
-            0,0,0,0, 8,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-            255,0,0,0, 0,0,255,0
-        ];
+        byte[] dib = [40, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 1, 0, 24, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 0, 0, 0, 0, 0, 255, 0];
         using var stream = new MemoryStream(ClipboardImageCodec.Normalize(dib, isDib: true));
         var frame = new PngBitmapDecoder(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad).Frames[0];
         var pixels = new byte[8];
@@ -43,6 +36,5 @@ public class ClipboardImageCodecTests
     }
 
     [Fact]
-    public void RejectsTruncatedDib()
-        => Assert.Throws<InvalidDataException>(() => ClipboardImageCodec.Normalize([40, 0, 0, 0], isDib: true));
+    public void RejectsTruncatedDib() => Assert.Throws<InvalidDataException>(() => ClipboardImageCodec.Normalize([40, 0, 0, 0], isDib: true));
 }
