@@ -1,4 +1,4 @@
-# Shared by the packaging script and the portable diagnostic launcher.
+# Package integrity checks used during portable packaging and verification.
 function Get-KeepClipExecutableArchitecture {
     param([Parameter(Mandatory=$true)][string]$Path)
     $reader = [IO.BinaryReader]::new([IO.File]::OpenRead($Path))
@@ -37,7 +37,7 @@ function Test-KeepClipPackage {
     param([Parameter(Mandatory=$true)][string]$Directory)
     $bundleRoot = (Resolve-Path -LiteralPath $Directory).Path.TrimEnd('\','/')
     $manifestPath = Join-Path $bundleRoot 'KeepClip.package.json'
-    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { return 'Manifest di verifica mancante: usa lo ZIP con diagnostica.' }
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { return 'Manifest di verifica mancante: estrai nuovamente lo ZIP completo.' }
     try { $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json -ErrorAction Stop }
     catch { return 'Manifest di verifica non leggibile.' }
     if ($manifest.FormatVersion -ne 1 -or $manifest.Architecture -notin @('x64','arm64','x86') -or @($manifest.Files).Count -eq 0) { return 'Manifest di verifica non valido.' }
