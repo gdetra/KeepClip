@@ -1,4 +1,5 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project
+  Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <TargetFramework>net10.0</TargetFramework>
@@ -7,19 +8,59 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/KeepClip.Application/KeepClip.Application.csproj"/>
-    <ProjectReference Include="../../src/KeepClip.Storage/KeepClip.Storage.csproj"/>
-    <PackageReference Include="Microsoft.NET.Test.Sdk"/>
-    <PackageReference Include="xunit"/>
-    <PackageReference Include="xunit.runner.visualstudio"/>
+    <PackageReference
+      Include="Microsoft.Extensions.DependencyInjection" />
+    <ProjectReference
+      Include="../../src/KeepClip.Application/KeepClip.Application.csproj" />
+    <ProjectReference
+      Include="../../src/KeepClip.Storage/KeepClip.Storage.csproj" />
+    <PackageReference
+      Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference
+      Include="xunit" />
+    <PackageReference
+      Include="xunit.runner.visualstudio" />
+    <PackageReference
+      Include="CommunityToolkit.Mvvm" />
   </ItemGroup>
   <ItemGroup>
-    <Using Include="Xunit"/>
-    <Compile Include="../../src/KeepClip.App/Desktop/WindowsVGesture.cs" Link="Desktop/WindowsVGesture.cs"/>
-    <Compile Include="../../src/KeepClip.App/Shelf/ShelfViewModel.cs" Link="Shelf/ShelfViewModel.cs"/>
-    <Compile Include="../../src/KeepClip.App/Interop/NativeMethods.cs" Link="Interop/NativeMethods.cs"/>
-    <Compile Include="../../src/KeepClip.App/Clipboard/NativeClipboard.cs" Link="Clipboard/NativeClipboard.cs"/>
-    <Compile Include="../../src/KeepClip.App/Clipboard/CopySoundWave.cs" Link="Clipboard/CopySoundWave.cs"/>
-    <Compile Include="../../src/KeepClip.App/DiagnosticLog.cs" Link="DiagnosticLog.cs"/>
+    <Compile
+      Include="../../src/KeepClip.App/Composition/ApplicationServiceRegistration.cs"
+      Link="Composition/ApplicationServiceRegistration.cs" />
+    <Compile
+      Include="../../src/KeepClip.App/Composition/AppCallbacks.cs"
+      Link="Composition/AppCallbacks.cs" />
+    <Compile
+      Include="../../src/KeepClip.App/Shelf/PasteClipFactory.cs"
+      Link="Shelf/PasteClipFactory.cs" />
+    <Using
+      Include="Xunit" />
+    <Compile
+      Include="../../src/KeepClip.App/Desktop/WindowsVGesture.cs"
+      Link="Desktop/WindowsVGesture.cs" />
+    <Compile
+      Include="../../src/KeepClip.App/Shelf/ShelfViewModel.cs"
+      Link="Shelf/ShelfViewModel.cs" />
+    <Compile
+      Include="../../src/KeepClip.App/Interop/NativeMethods.cs"
+      Link="Interop/NativeMethods.cs" />
+    <Compile
+      Include="../../src/KeepClip.App/Clipboard/NativeClipboard.cs"
+      Link="Clipboard/NativeClipboard.cs" />
+    <Compile
+      Include="../../src/KeepClip.App/Clipboard/INativeClipboardApi.cs"
+      Link="Clipboard/INativeClipboardApi.cs" />
+    <Compile
+      Include="../../src/KeepClip.App/Clipboard/WindowsClipboardApi.cs"
+      Link="Clipboard/WindowsClipboardApi.cs" />
+    <Compile
+      Include="../../src/KeepClip.App/Clipboard/CopySoundWave.cs"
+      Link="Clipboard/CopySoundWave.cs" />
+    <Compile
+      Include="../../src/KeepClip.App/Settings/SettingsViewModel.cs"
+      Link="Settings/SettingsViewModel.cs" />
+    <Compile
+      Include="../../src/KeepClip.App/Settings/SettingsApplyMessages.cs"
+      Link="Settings/SettingsApplyMessages.cs" />
   </ItemGroup>
 </Project>

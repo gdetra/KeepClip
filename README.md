@@ -82,7 +82,7 @@ L'app resta nell'area di notifica. Dal suo menu puoi aprire le impostazioni, met
 
 Il pacchetto MSIX richiede una firma con un certificato attendibile prima dell'installazione. Per provare l'app senza configurare la firma, usa lo ZIP portabile.
 
-Se l'app non compare, esegui **`Avvia-con-diagnostica.cmd`** dalla cartella estratta: verifica i file e indica dove trovare il rapporto di avvio.
+Se l'app non compare, verifica di aver estratto tutti i file dello ZIP in una cartella vuota.
 
 ## Come si usa
 
@@ -116,7 +116,6 @@ KeepClip conserva la cronologia **sul dispositivo**, senza account e senza invia
 - Il database SQLite e le immagini della cronologia sono separati dai file distribuiti dell'app.
 - La cronologia **non è cifrata dall'app**. Metti in pausa la cattura quando lavori con contenuti che non vuoi conservare.
 - Per file e cartelle vengono salvati i riferimenti agli originali. Eliminare una scheda non elimina i file; spostare o cancellare gli originali ne impedisce il successivo incolla.
-- Il log diagnostico registra eventi e codici di errore, senza il testo o le immagini copiati.
 
 ### Aggiornare un'installazione precedente
 
@@ -150,6 +149,21 @@ dotnet test tests/KeepClip.Windows.Tests --no-restore
 
 Per lo Store usa `Build-Package.ps1 -StoreVersion 1.0.0.0` (o una versione successiva): il parametro applica al manifest MSIX una versione valida per lo Store, distinta dalla versione GitVersion dell'eseguibile. L'avvio manuale di Windows CI su `main` espone lo stesso parametro nel campo `store_version`. Vedi la [guida Store](docs/store/README.md) per comandi, progressione delle versioni e pubblicazione dell'informativa privacy.
 
+La composizione dei servizi usa il container Microsoft con dipendenze nei costruttori, servizi condivisi e un nuovo ViewModel per ogni apertura delle impostazioni.
+
+### Formattazione e qualità del codice
+
+Le regole comuni sono in [`.editorconfig`](.editorconfig). Per applicarle:
+
+```powershell
+./scripts/Format-Code.ps1
+./scripts/Format-Markup.ps1
+```
+
+Usa `-Check` su entrambi gli script per verificare lo stile senza modificare i file. Il formatter C# gestisce separatamente i progetti che condividono file sorgente. I membri hanno accessibilità esplicita e i campi privati seguono `_camelCase`; le firme lunghe usano parametri su più righe con rientro di quattro spazi. Il controllo sintattico richiede un solo tipo top-level per file e preserva token, commenti e direttive. `Test-CodeStyle.ps1` verifica questi casi in CI.
+
+L'analyzer WinUI è una dipendenza privata del progetto App e viene eseguito nelle normali build. `SettingsCoordinator` serializza salvataggi e pausa dal tray, gestisce il rollback e restituisce risultati tipizzati con stato, motivi e avvisi. I ViewModel traducono questi risultati in stato della UI; finestre, dialoghi e picker restano nella presentazione.
+
 ### Versioni da Git
 
 [`GitVersion.yml`](GitVersion.yml) calcola la versione da branch, tag e cronologia. Su `main` le build di sviluppo usano il suffisso `ci`; un tag come `v0.2.0` fissa la versione stabile. Controlla il risultato con `./scripts/Get-Version.ps1`. Per generare una build stabile in CI, applica il tag al commit corrente di `main` e avvia manualmente il workflow su `main`: il solo push del tag non avvia una build.
@@ -158,7 +172,7 @@ La CI calcola la versione una volta e la usa per tutte le architetture. Gli scri
 
 ### Quando parte la CI
 
-Il workflow [Windows CI](.github/workflows/windows-ci.yml) esegue test e packaging **solo sui push a `main`** che modificano codice o configurazione. Le modifiche limitate a file Markdown o a `docs/` sono escluse. Push su altri branch, pull request e push di tag non avviano build automatiche. L'avvio manuale è disponibile su `main`; selezionando un altro branch o un tag, tutti i job vengono saltati.
+Il workflow [Windows CI](.github/workflows/windows-ci.yml) esegue controlli di formattazione, build WinUI con analyzer e test sulle pull request verso `main`. I push a `main` che modificano codice o configurazione eseguono anche il packaging; i push limitati a Markdown o `docs/` sono esclusi. Push su altri branch e push di tag non avviano build automatiche. L'avvio manuale su `main` include il packaging; su altri branch esegue i controlli di qualità e i test.
 
 <p align="right"><a href="#readme-top">Torna all'inizio ↑</a></p>
 

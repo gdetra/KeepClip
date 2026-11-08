@@ -1,151 +1,282 @@
 using KeepClip.App.Clipboard;
+using KeepClip.App.Composition;
 using KeepClip.App.Desktop;
 using KeepClip.App.Interop;
 using KeepClip.App.Settings;
 using KeepClip.App.Shelf;
 using KeepClip.Application;
-using KeepClip.Application.Selection;
+using KeepClip.Application.Settings;
 using KeepClip.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
+
 namespace KeepClip.App;
+
 public partial class App : Microsoft.UI.Xaml.Application
 {
-    readonly SingleInstanceService instance = new();
-    MessageWindow? messages; ClipboardMonitor? monitor; HotkeyService? hotkey; TrayIconService? tray;
-    ShelfWindow? shelf; SettingsWindow? settingsWindow; HistoryService? history;
-    AppSettings settings = AppSettings.Default;
-    SettingsStore? settingsStore;
-    ForegroundTracker? foreground;
-    SelectionCopyService? selectionCopy;
-    AsyncClipboardService? clipboard;
-    string dataPath = "";
-    bool storageReady, shuttingDown;
-    public App() { InitializeComponent(); UnhandledException += (_, e) => { e.Handled = true; Notify("Si è verificato un errore. Se persiste, riavvia KeepClip."); }; }
+    private readonly SingleInstanceService _instance = new();
+    private ServiceProvider? _services;
+    private ClipboardMonitor? _monitor;
+    private IHotkeySettingsService? _hotkey;
+    private TrayIconService? _tray;
+    private ShelfWindow? _shelf;
+    private SettingsWindow? _settingsWindow;
+    private HistoryService? _history;
+    private AppSettings _initialSettings = AppSettings.Default;
+    private SettingsCoordinator? _settingsCoordinator;
+
+    private ForegroundTracker? _foreground;
+    private SelectionCopyService? _selectionCopy;
+    private string _dataPath = "";
+    private bool _storageReady;
+    private bool _shuttingDown;
+
+    private AppSettings CurrentSettings => _settingsCoordinator?.CurrentSettings ?? _initialSettings;
+
+    public App()
+    {
+        InitializeComponent();
+    }
+
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
-        if (!instance.TryAcquire()) { Exit(); return; }
-        var startupStage = "data-path";
+        if (!_instance.TryAcquire())
+        {
+            Exit();
+            return;
+        }
+
         try
         {
-            try { dataPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path; }
-            catch { dataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KeepClip"); }
-            DiagnosticLog.DirectoryPath = dataPath; DiagnosticLog.Write("app-start diagnostics=native-clipboard-v2");
-            startupStage = "settings";
-            settingsStore = new(dataPath); string? startupError = null;
-            try { settings = await settingsStore.LoadAsync(); } catch { startupError = "Impostazioni non leggibili. Sono stati usati i valori predefiniti."; }
-            startupStage = "history-services";
-            var repository = new SqliteHistoryRepository(dataPath); var images = new ImageStore(dataPath);
-            history = new(repository, images.SaveAsync, context => SourceAppResolver.ResolveClipboardAsync(context.OwnerProcess, context.ForegroundProcess));
-            history.SetPaused(settings.IsPaused);
-            startupStage = "foreground-tracker"; foreground = new();
-            startupStage = "clipboard-service";
-            var sources = new ClipboardSourceTracker();
-            clipboard = new(new ClipboardAdapter(sources, () => messages?.Handle ?? 0), new StaClipboardExecutor(), NativeMethods.GetClipboardSequenceNumber);
-            startupStage = "shelf-window"; shelf = new(history, clipboard, new StoredClipContentLoader());
-            startupStage = "shelf-theme";
-            shelf.ApplyAppearance(settings.Appearance);
-            startupStage = "desktop-services";
-            messages = new(); hotkey = new(messages); tray = new(messages) { Paused = settings.IsPaused };
-            tray.Open += OpenShelf; tray.Settings += OpenSettings; tray.TogglePause += TogglePause; tray.Exit += Shutdown;
-            tray.Show(); shelf.SettingsRequested += OpenSettings; shelf.Notification += Notify; hotkey.Invoked += OpenShelf;
-            if (!hotkey.TryRegister(settings.Hotkey)) startupError = "Scorciatoia occupata. Apri le impostazioni dall'icona e scegli un'altra combinazione.";
-            startupStage = "history-load";
-            try { await history.InitializeAsync(); storageReady = true; }
-            catch (Exception ex) { startupError = ex is HistoryStorageException ? ex.Message : "Impossibile aprire la cronologia. Controlla la cartella dati nelle impostazioni."; history.SetPaused(true); }
-            startupStage = "capture-services";
-            monitor = new(messages, clipboard, history, sources); monitor.Problem += Notify; monitor.Copied += OnCopied;
-            var selectionCoordinator = new SelectionCopyCoordinator(clipboard, history, () => settings.CopyOnSelection, NativeMethods.GetClipboardSequenceNumber, OnCopied, Notify);
-            selectionCopy = new(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread(), history, selectionCoordinator, () => settings.CopyOnSelection && storageReady && !history.IsPaused);
-            selectionCopy.Problem += Notify;
-            if (!UpdateSelectionCapture()) startupError = "Impossibile attivare la copia alla selezione. Le copie manuali restano disponibili.";
-            if (!hotkey.SetWindowsV(settings.UseWindowsV))
+            try
+            {
+                _dataPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+            }
+            catch
+            {
+                _dataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KeepClip");
+            }
+
+            _services = await AppServiceRegistration.CreateAsync(_dataPath, new AppCallbacks(
+                () => CurrentSettings,
+                () => CurrentSettings.CopyOnSelection && _storageReady && _history?.IsPaused == false,
+                OnCopied,
+                Notify,
+                OpenShelf,
+                ApplyRuntimeSettings,
+                RecoverAsync));
+            var startup = _services.GetRequiredService<StartupSettings>();
+            _initialSettings = startup.Settings;
+            var startupError = startup.Error;
+            _history = _services.GetRequiredService<HistoryService>();
+            _history.SetPaused(CurrentSettings.IsPaused);
+            _foreground = _services.GetRequiredService<ForegroundTracker>();
+            _shelf = _services.GetRequiredService<ShelfWindow>();
+            _shelf.ApplyAppearance(CurrentSettings.Appearance);
+            _hotkey = _services.GetRequiredService<IHotkeySettingsService>();
+            _tray = _services.GetRequiredService<TrayIconService>();
+            _tray.Paused = CurrentSettings.IsPaused;
+            _settingsCoordinator = _services.GetRequiredService<SettingsCoordinator>();
+            _tray.Open += OpenShelf;
+            _tray.Settings += OpenSettings;
+            _tray.TogglePause += TogglePause;
+            _tray.Exit += Shutdown;
+            _tray.Show();
+            _shelf.SettingsRequested += OpenSettings;
+            _shelf.Notification += Notify;
+            if (!_hotkey.TryRegister(CurrentSettings.Hotkey))
+            {
+                startupError = "Scorciatoia occupata. Apri le impostazioni dall'icona e scegli un'altra combinazione.";
+            }
+
+            try
+            {
+                await _history.InitializeAsync();
+                _storageReady = true;
+            }
+            catch (Exception ex)
+            {
+                startupError = ex is HistoryStorageException ? ex.Message : "Impossibile aprire la cronologia. Controlla la cartella dati nelle impostazioni.";
+                _history.SetPaused(true);
+            }
+
+            _monitor = _services.GetRequiredService<ClipboardMonitor>();
+            _monitor.Problem += Notify;
+            _monitor.Copied += OnCopied;
+            _selectionCopy = _services.GetRequiredService<SelectionCopyService>();
+            _selectionCopy.Problem += Notify;
+            if (!UpdateSelectionCapture())
+            {
+                startupError = "Impossibile attivare la copia alla selezione. Le copie manuali restano disponibili.";
+            }
+
+            if (!_hotkey.SetWindowsV(CurrentSettings.UseWindowsV))
+            {
                 startupError ??= "Win+V non disponibile. Usa la scorciatoia alternativa di KeepClip.";
-            DiagnosticLog.Write($"app-ready paused={history.IsPaused}");
+            }
+
             var startupActivation = false;
-            try { startupActivation = Microsoft.Windows.AppLifecycle.AppInstance.GetCurrent().GetActivatedEventArgs().Kind == Microsoft.Windows.AppLifecycle.ExtendedActivationKind.StartupTask; } catch { }
-            startupStage = "show-window";
-            if (!StartupCommand.ShouldStartHidden(Environment.GetCommandLineArgs(), startupActivation)) shelf.ShowFor(0);
-            if (startupError is not null) Notify(startupError);
-            else if (settings.IsPaused) shelf.ShowMessage("La cattura è in pausa. Riprendila dall'icona nell'area di notifica.");
+            try
+            {
+                startupActivation = Microsoft.Windows.AppLifecycle.AppInstance.GetCurrent().GetActivatedEventArgs().Kind == Microsoft.Windows.AppLifecycle.ExtendedActivationKind.StartupTask;
+            }
+            catch
+            {
+            }
+
+            if (!StartupCommand.ShouldStartHidden(Environment.GetCommandLineArgs(), startupActivation))
+            {
+                _shelf.ShowFor(0);
+            }
+
+            if (startupError is not null)
+            {
+                Notify(startupError);
+            }
+            else if (CurrentSettings.IsPaused)
+            {
+                _shelf.ShowMessage("La cattura è in pausa. Riprendila dall'icona nell'area di notifica.");
+            }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            // Diagnostic log contains exception type only, never clipboard payloads.
-            DiagnosticLog.StartupFailure(startupStage, ex);
-            if (shelf is not null) { shelf.ShowFor(0); shelf.ShowMessage("Avvio incompleto. Verifica le dipendenze e riavvia KeepClip."); }
-            else Shutdown();
+            Shutdown();
         }
     }
-    void OpenShelf()
+
+    private void OpenShelf()
     {
-        if (shelf is null) return;
-        if (shelf.IsVisible) { shelf.Hide(); return; }
-        shelf.ShowFor(foreground?.Capture() ?? new WindowTarget().Capture());
-    }
-    void OpenSettings()
-    {
-        shelf?.Hide();
-        if (settingsWindow is null)
+        if (_shelf is null)
         {
-            settingsWindow = new(settings, dataPath, ApplySettingsAsync, RecoverAsync);
-            settingsWindow.Closed += (_, _) => settingsWindow = null;
+            return;
         }
-        settingsWindow.Activate();
-    }
-    async void TogglePause()
-    {
-        try { var result = await ApplySettingsAsync(settings with { IsPaused = !settings.IsPaused }); Notify(result ?? (settings.IsPaused ? "Cattura in pausa." : "Cattura ripresa.")); }
-        catch { Notify("Impossibile salvare la pausa."); }
-    }
-    async Task<string?> ApplySettingsAsync(AppSettings next)
-    {
-        if (hotkey is null || history is null || settingsStore is null) return "Applicazione non inizializzata.";
-        var previous = settings;
-        var alternativeAvailable = hotkey.TryRegister(next.Hotkey);
-        if (!alternativeAvailable)
+
+        if (_shelf.IsVisible)
         {
-            if (!previous.UseWindowsV || next.UseWindowsV)
-                return "Scorciatoia già in uso. La combinazione precedente resta attiva.";
-            // Releasing Win+V must also work when another app has the alternate shortcut.
-            next = next with { Hotkey = previous.Hotkey };
+            _shelf.Hide();
+            return;
         }
-        var requestedAutoStart = next.AutoStart;
-        var startup = new StartupService(); var current = await startup.GetAsync();
-        var actual = current.Available && current.Enabled != next.AutoStart ? await startup.SetEnabledAsync(next.AutoStart) : current;
-        next = next with { AutoStart = actual.Enabled };
-        try { await settingsStore.SaveAsync(next); }
-        catch { hotkey.TryRegister(previous.Hotkey); if (actual.Enabled != current.Enabled) await startup.SetEnabledAsync(current.Enabled); throw; }
-        settings = next; history.SetPaused(next.IsPaused || !storageReady); if (tray is not null) tray.Paused = next.IsPaused || !storageReady;
-        var windowsVAvailable = hotkey.SetWindowsV(next.UseWindowsV);
-        shelf?.ApplyAppearance(next.Appearance);
-        if (!UpdateSelectionCapture()) return "Impostazioni salvate, ma la copia alla selezione non è disponibile. Riprova dopo il riavvio.";
-        if (!windowsVAvailable) return "Impostazioni salvate. Win+V non disponibile: usa la scorciatoia alternativa.";
-        if (!alternativeAvailable) return "Win+V restituito a Windows. Scorciatoia alternativa già in uso.";
-        return !storageReady ? "Cronologia non disponibile. Ripristinala prima di riprendere la cattura." :
-            (!actual.Available || actual.Enabled != requestedAutoStart) ? actual.Message ?? "Windows non ha applicato la scelta di avvio automatico." : null;
+
+        _shelf.ShowFor(_foreground?.Capture() ?? new WindowTarget().Capture());
     }
-    async Task RecoverAsync()
+
+    private void OpenSettings()
     {
-        if (history is null) return;
-        history.SetPaused(true); storageReady = false;
+        if (_services is null)
+        {
+            return;
+        }
+
+        _shelf?.Hide();
+        if (_settingsWindow is null)
+        {
+            _settingsWindow = _services.GetRequiredService<SettingsWindow>();
+            _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        }
+
+        _settingsWindow.Activate();
+    }
+
+    private async void TogglePause()
+    {
+        if (_settingsCoordinator is null)
+        {
+            return;
+        }
+
+        var result = await _settingsCoordinator.TogglePauseAsync();
+        Notify(result.Status == SettingsApplyStatus.Applied ? result.EffectiveSettings.IsPaused ? "Cattura in pausa." : "Cattura ripresa." : SettingsApplyMessages.ForSave(result));
+    }
+
+    private SettingsApplyWarnings ApplyRuntimeSettings(AppSettings settings)
+    {
+        var warnings = SettingsApplyWarnings.None;
+        _history?.SetPaused(settings.IsPaused || !_storageReady);
+        if (_tray is not null)
+        {
+            _tray.Paused = settings.IsPaused || !_storageReady;
+        }
+
+        _shelf?.ApplyAppearance(settings.Appearance);
+        if (!UpdateSelectionCapture())
+        {
+            warnings |= SettingsApplyWarnings.SelectionCaptureUnavailable;
+        }
+
+        if (!_storageReady)
+        {
+            warnings |= SettingsApplyWarnings.StorageUnavailable;
+        }
+
+        return warnings;
+    }
+
+    private async Task RecoverAsync()
+    {
+        if (_history is null)
+        {
+            return;
+        }
+
+        _history.SetPaused(true);
+        _storageReady = false;
         UpdateSelectionCapture();
         // Wait for any in-flight capture to finish before archiving the database and images.
-        await history.ResetWithBackupAsync(new HistoryRecovery(dataPath).PrepareResetAsync);
-        storageReady = true; history.SetPaused(settings.IsPaused); if (tray is not null) tray.Paused = settings.IsPaused;
+        await _history.ResetWithBackupAsync(_services!.GetRequiredService<HistoryRecovery>().PrepareResetAsync);
+        _storageReady = true;
+        _history.SetPaused(CurrentSettings.IsPaused);
+        if (_tray is not null)
+        {
+            _tray.Paused = CurrentSettings.IsPaused;
+        }
+
         UpdateSelectionCapture();
     }
-    void Notify(string message) { shelf?.ShowMessage(message); tray?.Notify(message); }
-    void OnCopied() { if (!shuttingDown && settings.CopySound && history?.IsPaused == false) CopyFeedbackSound.Play(settings.CopySoundVolume); }
-    bool UpdateSelectionCapture()
+
+    private void Notify(string message)
     {
-        if (selectionCopy is null) return true;
-        if (settings.CopyOnSelection && storageReady && history?.IsPaused == false) return selectionCopy.Start();
-        selectionCopy.Stop(); return true;
+        _shelf?.ShowMessage(message);
+        _tray?.Notify(message);
     }
-    void Shutdown()
+
+    private void OnCopied()
     {
-        if (shuttingDown) return; shuttingDown = true;
+        if (!_shuttingDown && CurrentSettings.CopySound && _history?.IsPaused == false)
+        {
+            CopyFeedbackSound.Play(CurrentSettings.CopySoundVolume);
+        }
+    }
+
+    private bool UpdateSelectionCapture()
+    {
+        if (_selectionCopy is null)
+        {
+            return true;
+        }
+
+        if (CurrentSettings.CopyOnSelection && _storageReady && _history?.IsPaused == false)
+        {
+            return _selectionCopy.Start();
+        }
+
+        _selectionCopy.Stop();
+        return true;
+    }
+
+    private void Shutdown()
+    {
+        if (_shuttingDown)
+        {
+            return;
+        }
+
+        _shuttingDown = true;
         CopyFeedbackSound.Stop();
-        selectionCopy?.Dispose(); foreground?.Dispose(); monitor?.Dispose(); clipboard?.Dispose(); hotkey?.Dispose(); tray?.Dispose(); messages?.Dispose(); settingsWindow?.Close(); shelf?.ExitWindow(); instance.Dispose(); Exit();
+        _selectionCopy?.Stop();
+        _settingsWindow?.Close();
+        _shelf?.ExitWindow();
+        _services?.Dispose();
+        _instance.Dispose();
+        Exit();
     }
 }
