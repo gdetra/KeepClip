@@ -7,6 +7,8 @@ on:
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
+  pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
       store_version:
@@ -32,6 +34,26 @@ env:
   KEEPCLIP_STORE_VERSION: ${{ inputs.store_version }}
 
 jobs:
+  formatting:
+    name: Formatting
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Restore locked dependencies
+        run: dotnet restore KeepClip.slnx --locked-mode
+      - name: Compile WinUI and run its analyzer
+        run: dotnet build src/KeepClip.App/KeepClip.App.csproj -c Release -p:Platform=x64 --no-restore
+      - name: Check C# formatting and braces
+        run: ./scripts/Format-Code.ps1 -Check
+      - name: Check XAML and XML formatting
+        run: ./scripts/Format-Markup.ps1 -Check
+      - name: Verify code style regressions
+        run: ./scripts/Test-CodeStyle.ps1
+
   version:
     name: GitVersion
     if: github.ref == 'refs/heads/main'
@@ -73,7 +95,6 @@ jobs:
 
   test:
     name: Tests (${{ matrix.architecture }})
-    needs: version
     runs-on: windows-2025-vs2026
     timeout-minutes: 20
     strategy:
@@ -117,7 +138,7 @@ jobs:
 
   package:
     name: Packages (${{ matrix.architecture }})
-    needs: [version, test]
+    needs: [version, test, formatting]
     runs-on: windows-2025-vs2026
     timeout-minutes: 30
     strategy:
