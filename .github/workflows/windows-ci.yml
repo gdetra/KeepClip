@@ -10,12 +10,6 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      store_version:
-        description: 'Versione MSIX Store (es. 1.0.0.0); vuoto per packaging ordinario GitVersion'
-        required: false
-        type: string
-        default: ''
 
 permissions:
   contents: read
@@ -31,7 +25,6 @@ defaults:
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
-  KEEPCLIP_STORE_VERSION: ${{ inputs.store_version }}
 
 jobs:
   formatting:
@@ -40,6 +33,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
@@ -54,45 +49,6 @@ jobs:
       - name: Verify code style regressions
         run: ./scripts/Test-CodeStyle.ps1
 
-  version:
-    name: GitVersion
-    if: github.ref == 'refs/heads/main'
-    runs-on: windows-2025-vs2026
-    timeout-minutes: 10
-    outputs:
-      semver: ${{ steps.version.outputs.semver }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-dotnet@v5
-        with:
-          global-json-file: global.json
-          dotnet-version: '8.0.x'
-      - name: Restore pinned GitVersion tool
-        run: dotnet tool restore
-      - name: Validate optional Store version
-        run: |
-          if ($env:KEEPCLIP_STORE_VERSION) {
-            . ./scripts/Versioning.ps1
-            Assert-KeepClipStoreVersion -Version $env:KEEPCLIP_STORE_VERSION
-          }
-      - name: Verify release tags and development version increments
-        run: ./scripts/Test-GitVersion.ps1
-      - name: Calculate version once for all architectures
-        id: version
-        run: |
-          $version = ./scripts/Get-Version.ps1 -OutputPath ./artifacts/version/KeepClip.version.json
-          "semver=$($version.SemVer)" >> $env:GITHUB_OUTPUT
-          $msixVersion = if ($env:KEEPCLIP_STORE_VERSION) { $env:KEEPCLIP_STORE_VERSION } else { $version.AssemblySemFileVer }
-          "Version: $($version.SemVer), MSIX: $msixVersion, commit: $($version.Sha)" >> $env:GITHUB_STEP_SUMMARY
-      - uses: actions/upload-artifact@v6
-        with:
-          name: KeepClip-version
-          path: artifacts/version/KeepClip.version.json
-          if-no-files-found: error
-          retention-days: 14
-
   test:
     name: Tests (${{ matrix.architecture }})
     runs-on: windows-2025-vs2026
@@ -103,6 +59,8 @@ jobs:
         architecture: [x64, x86]
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - name: Install .NET SDK and matching test runtime
         uses: actions/setup-dotnet@v5
         with:
@@ -118,15 +76,6 @@ jobs:
         run: dotnet restore tests/KeepClip.Windows.Tests --locked-mode
       - name: Run Windows tests
         run: dotnet test tests/KeepClip.Windows.Tests -c Release --arch ${{ matrix.architecture }} --no-restore --logger trx --results-directory TestResults/windows
-      - name: Verify portable package validation for every architecture
-        run: |
-          foreach ($architecture in @('x64', 'arm64', 'x86')) {
-            ./scripts/Test-PortablePackage.ps1 -FixturesDirectory ./artifacts/package-tests -Architecture $architecture
-          }
-      - name: Verify version metadata validation
-        run: ./scripts/Test-Versioning.ps1
-      - name: Verify Microsoft Store version validation
-        run: ./scripts/Test-StoreVersion.ps1
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v6
@@ -136,15 +85,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  package:
-    name: Packages (${{ matrix.architecture }})
-    needs: [version, test, formatting]
+  validation:
+    name: Release and packaging script checks
     runs-on: windows-2025-vs2026
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        architecture: [x64, arm64, x86]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
         with:
@@ -152,40 +96,19 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
-          cache: true
-          cache-dependency-path: '**/packages.lock.json'
-      - name: Restore app with locked dependencies
-        run: dotnet restore src/KeepClip.App/KeepClip.App.csproj -p:Platform=${{ matrix.architecture }} --locked-mode
-      - name: Download shared version metadata
-        uses: actions/download-artifact@v6
-        with:
-          name: KeepClip-version
-          path: artifacts/version
-      - name: Publish self-contained app
-        run: ./scripts/Publish-App.ps1 -Architecture ${{ matrix.architecture }} -NoRestore -PublishDirectory ./artifacts/publish-${{ matrix.architecture }} -VersionFile ./artifacts/version/KeepClip.version.json
-      - name: Prepare separate MSIX payload
+          dotnet-version: '8.0.x'
+      - name: Restore pinned GitVersion tool
+        run: dotnet tool restore
+      - name: Verify version metadata and Store version rules
         run: |
-          New-Item -ItemType Directory -Path artifacts/msix-${{ matrix.architecture }} -Force | Out-Null
-          Copy-Item -Path artifacts/publish-${{ matrix.architecture }}/* -Destination artifacts/msix-${{ matrix.architecture }} -Recurse
-      - name: Build and verify portable ZIP
-        run: ./scripts/Build-Portable.ps1 -SkipBuild -Architecture ${{ matrix.architecture }} -PublishDirectory ./artifacts/publish-${{ matrix.architecture }} -OutputDirectory ./artifacts/packages
-      - name: Build unsigned MSIX
+          ./scripts/Test-Versioning.ps1
+          ./scripts/Test-StoreVersion.ps1
+      - name: Verify GitVersion history and release guards
         run: |
-          $storeArguments = @{}
-          if ($env:KEEPCLIP_STORE_VERSION) { $storeArguments.StoreVersion = $env:KEEPCLIP_STORE_VERSION }
-          ./scripts/Build-Package.ps1 -SkipBuild -Architecture ${{ matrix.architecture }} -PublishDirectory ./artifacts/msix-${{ matrix.architecture }} -OutputDirectory ./artifacts/packages @storeArguments
-      - name: Generate package checksums
+          ./scripts/Test-GitVersion.ps1
+          ./scripts/Test-Release.ps1
+      - name: Verify portable integrity checks
         run: |
-          $packages = @(Get-ChildItem ./artifacts/packages -File | Where-Object Extension -In @('.zip', '.msix'))
-          if ($packages.Count -ne 2) { throw 'Expected one ZIP and one MSIX.' }
-          $packages | Sort-Object Name | ForEach-Object {
-            '{0}  {1}' -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
-          } | Set-Content ./artifacts/packages/SHA256SUMS.txt -Encoding utf8
-      - name: Upload packages
-        uses: actions/upload-artifact@v6
-        with:
-          name: KeepClip-${{ needs.version.outputs.semver }}-windows-${{ matrix.architecture }}
-          path: artifacts/packages/*
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 14
+          foreach ($architecture in @('x64', 'arm64', 'x86')) {
+            ./scripts/Test-PortablePackage.ps1 -FixturesDirectory ./artifacts/package-tests -Architecture $architecture
+          }
