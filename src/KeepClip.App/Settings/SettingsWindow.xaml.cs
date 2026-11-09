@@ -35,6 +35,10 @@ internal sealed partial class SettingsWindow : Window
 
     public SettingsViewModel Model { get; }
 
+    public event Action? AboutRequested;
+
+    private void About_Click(object sender, RoutedEventArgs e) => AboutRequested?.Invoke();
+
     private async void Root_Loaded(
         object sender,
         RoutedEventArgs e) => await Model.RefreshStartupCommand.ExecuteAsync(null);

@@ -283,6 +283,11 @@
           Click="Recover_Click"
           IsEnabled="{x:Bind Model.CanChangeSettings, Mode=OneWay}"
           AutomationProperties.AutomationId="SettingsWindow_Ripristinaunacronologiadanneggiata" />
+        <HyperlinkButton
+          Content="Informazioni su KeepClip"
+          Click="About_Click"
+          HorizontalAlignment="Left"
+          AutomationProperties.AutomationId="SettingsWindow_About" />
       </StackPanel>
     </ScrollViewer>
     <Border

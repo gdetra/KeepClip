@@ -63,4 +63,9 @@
       Include="../../src/KeepClip.App/Settings/SettingsApplyMessages.cs"
       Link="Settings/SettingsApplyMessages.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile
+      Include="../../src/KeepClip.App/About/AppVersionInfo.cs"
+      Link="About/AppVersionInfo.cs" />
+  </ItemGroup>
 </Project>

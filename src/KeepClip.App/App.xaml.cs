@@ -1,3 +1,4 @@
+using KeepClip.App.About;
 using KeepClip.App.Clipboard;
 using KeepClip.App.Composition;
 using KeepClip.App.Desktop;
@@ -21,6 +22,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     private TrayIconService? _tray;
     private ShelfWindow? _shelf;
     private SettingsWindow? _settingsWindow;
+    private AboutWindow? _aboutWindow;
     private HistoryService? _history;
     private AppSettings _initialSettings = AppSettings.Default;
     private SettingsCoordinator? _settingsCoordinator;
@@ -171,10 +173,28 @@ public partial class App : Microsoft.UI.Xaml.Application
         if (_settingsWindow is null)
         {
             _settingsWindow = _services.GetRequiredService<SettingsWindow>();
+            _settingsWindow.AboutRequested += OpenAbout;
             _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         }
 
         _settingsWindow.Activate();
+    }
+
+    private void OpenAbout()
+    {
+        if (_services is null)
+        {
+            return;
+        }
+
+        if (_aboutWindow is null)
+        {
+            _aboutWindow = _services.GetRequiredService<AboutWindow>();
+            _aboutWindow.ApplyAppearance(CurrentSettings.Appearance);
+            _aboutWindow.Closed += (_, _) => _aboutWindow = null;
+        }
+
+        _aboutWindow.Activate();
     }
 
     private async void TogglePause()
@@ -198,6 +218,7 @@ public partial class App : Microsoft.UI.Xaml.Application
         }
 
         _shelf?.ApplyAppearance(settings.Appearance);
+        _aboutWindow?.ApplyAppearance(settings.Appearance);
         if (!UpdateSelectionCapture())
         {
             warnings |= SettingsApplyWarnings.SelectionCaptureUnavailable;
@@ -274,6 +295,7 @@ public partial class App : Microsoft.UI.Xaml.Application
         CopyFeedbackSound.Stop();
         _selectionCopy?.Stop();
         _settingsWindow?.Close();
+        _aboutWindow?.Close();
         _shelf?.ExitWindow();
         _services?.Dispose();
         _instance.Dispose();

@@ -1,3 +1,4 @@
+using KeepClip.App.About;
 using KeepClip.App.Clipboard;
 using KeepClip.App.Desktop;
 using KeepClip.App.Interop;
@@ -54,6 +55,9 @@ internal static class DesktopServiceRegistration
             provider.GetRequiredService<SelectionCopyCoordinator>(),
             callbacks.SelectionEnabled));
         services.AddSingleton<ShelfWindow>();
+        services.AddSingleton(_ => AppVersionProvider.Read());
+        services.AddTransient<AboutPage>();
+        services.AddTransient<AboutWindow>();
         services.AddTransient(provider => new SettingsWindow(provider.GetRequiredService<SettingsViewModel>()));
         return services;
     }
