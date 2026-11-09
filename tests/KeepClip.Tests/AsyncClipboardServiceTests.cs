@@ -1,7 +1,8 @@
 using KeepClip.Application;
-using KeepClip.Domain.History;
-using KeepClip.Application.Selection;
 using KeepClip.Application.Paste;
+using KeepClip.Application.Selection;
+using KeepClip.Domain.History;
+
 namespace KeepClip.Tests;
 
 public sealed class AsyncClipboardServiceTests
@@ -26,17 +27,33 @@ public sealed class AsyncClipboardServiceTests
     [InlineData("disabled")]
     public async Task InvalidatedSelectionInQueueNeverWritesOrNotifies(string reason)
     {
-        var backend = new Backend { ReadCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+        var backend = new Backend
+        {
+            ReadCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously)
+        };
         using var service = new AsyncClipboardService(backend, new Executor(), () => 1);
         var history = new HistoryService(new ClipboardCaptureTests.MemoryRepository(), (_, _, _) => Task.FromResult("unused.png"));
         await history.CaptureAsync(new(new(ClipKind.Text, "previous"), 1));
         var read = service.ReadAsync();
-        var current = true; var enabled = true; var sounds = 0;
+        var current = true;
+        var enabled = true;
+        var sounds = 0;
         var selection = new SelectionCopyCoordinator(service, history, () => enabled, () => 1, () => sounds++);
         var copy = selection.CopyAsync(new("stale selection"), () => current);
-        if (reason == "gesture") current = false;
-        else if (reason == "pause") { history.SetPaused(true); history.SetPaused(false); }
-        else enabled = false;
+        if (reason == "gesture")
+        {
+            current = false;
+        }
+        else if (reason == "pause")
+        {
+            history.SetPaused(true);
+            history.SetPaused(false);
+        }
+        else
+        {
+            enabled = false;
+        }
+
         backend.ReadCompletion.SetResult(null);
         await read;
         Assert.False(await copy);
@@ -48,10 +65,15 @@ public sealed class AsyncClipboardServiceTests
     [Fact]
     public async Task CancelledShelfSessionInQueueDoesNotReplaceClipboardOrSendInput()
     {
-        var backend = new Backend { ReadCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+        var backend = new Backend
+        {
+            ReadCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously)
+        };
         using var service = new AsyncClipboardService(backend, new Executor(), () => 1);
         var read = service.ReadAsync();
-        var session = new PasteSession(); session.Open(12); var request = session.Snapshot();
+        var session = new PasteSession();
+        session.Open(12);
+        var request = session.Snapshot();
         var hidden = 0;
         var paste = new PasteCoordinator(service, new NoTarget(), new NoInput(), () => hidden++);
         var operation = paste.PasteAsync(new(ClipKind.Text, "cancelled card"), 12, canContinue: () => session.IsCurrent(request));
@@ -68,7 +90,10 @@ public sealed class AsyncClipboardServiceTests
     [Fact]
     public async Task ReadAndWriteAreSerializedAndPayloadsArePreserved()
     {
-        var backend = new Backend { ReadCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+        var backend = new Backend
+        {
+            ReadCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously)
+        };
         var executor = new Executor();
         using var service = new AsyncClipboardService(backend, executor, () => 1);
         var read = service.ReadAsync();
@@ -77,7 +102,6 @@ public sealed class AsyncClipboardServiceTests
         var write = service.WriteAsync(content, operation);
         Assert.Equal(1, backend.Reads);
         Assert.Empty(backend.Writes);
-
         var snapshot = new ClipboardSnapshot(new(ClipKind.Text, "Caffè 日本語"), 1, Source: new("Blocco note"));
         backend.ReadCompletion.SetResult(snapshot);
         Assert.Same(snapshot, await read);
@@ -92,7 +116,10 @@ public sealed class AsyncClipboardServiceTests
     public async Task NewCopyWhileWriteIsQueuedIsNeverOverwritten()
     {
         uint sequence = 1;
-        var backend = new Backend { ReadCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+        var backend = new Backend
+        {
+            ReadCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously)
+        };
         using var service = new AsyncClipboardService(backend, new Executor(), () => sequence);
         var read = service.ReadAsync();
         var write = service.WriteAsync(new(ClipKind.Text, "stale"), Guid.NewGuid());
@@ -106,7 +133,10 @@ public sealed class AsyncClipboardServiceTests
     [Fact]
     public async Task CancellationWhileQueuedNeverStartsTheWrite()
     {
-        var backend = new Backend { ReadCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+        var backend = new Backend
+        {
+            ReadCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously)
+        };
         using var service = new AsyncClipboardService(backend, new Executor(), () => 1);
         var read = service.ReadAsync();
         using var cancellation = new CancellationTokenSource();
@@ -131,7 +161,10 @@ public sealed class AsyncClipboardServiceTests
     [Fact]
     public async Task FailureReleasesTheQueueForTheNextOperation()
     {
-        var backend = new Backend { ReadError = new InvalidDataException("bad image") };
+        var backend = new Backend
+        {
+            ReadError = new InvalidDataException("bad image")
+        };
         using var service = new AsyncClipboardService(backend, new Executor(), () => 1);
         await Assert.ThrowsAsync<InvalidDataException>(() => service.ReadAsync());
         await service.WriteAsync(new(ClipKind.Image, Png: [1, 2, 3]), Guid.NewGuid());
@@ -141,7 +174,10 @@ public sealed class AsyncClipboardServiceTests
     [Fact]
     public async Task DisposalCancelsActiveAndQueuedOperationsAndClosesExecutorOnce()
     {
-        var backend = new Backend { ReadCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+        var backend = new Backend
+        {
+            ReadCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously)
+        };
         var executor = new Executor();
         var service = new AsyncClipboardService(backend, executor, () => 1);
         var read = service.ReadAsync();
@@ -158,7 +194,11 @@ public sealed class AsyncClipboardServiceTests
     [Fact]
     public async Task BusyReadRetriesWithinTheExecutorAndThenReturnsOwnMarker()
     {
-        var backend = new Backend { BusyReads = 2, Snapshot = new(new(ClipKind.Text), 1, true) };
+        var backend = new Backend
+        {
+            BusyReads = 2,
+            Snapshot = new(new(ClipKind.Text), 1, true)
+        };
         var executor = new Executor();
         using var service = new AsyncClipboardService(backend, executor, () => 1);
         Assert.True((await service.ReadAsync())!.IsOwnWrite);
@@ -166,10 +206,11 @@ public sealed class AsyncClipboardServiceTests
         Assert.Equal(1, executor.Executions);
     }
 
-    sealed class Executor : IClipboardExecutor
+    private sealed class Executor : IClipboardExecutor
     {
         public int Executions, Disposals;
         public Action? BeforeRun;
+
         public Task<T> RunAsync<T>(Func<Task<T>> action, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
@@ -177,23 +218,34 @@ public sealed class AsyncClipboardServiceTests
             BeforeRun?.Invoke();
             return action();
         }
+
         public void Dispose() => Disposals++;
     }
 
-    sealed class Backend : IClipboardAdapter
+    private sealed class Backend : IClipboardAdapter
     {
         public int Reads, BusyReads;
         public Exception? ReadError;
         public ClipboardSnapshot? Snapshot;
         public TaskCompletionSource<ClipboardSnapshot?>? ReadCompletion;
         public List<(ClipContent Content, Guid Operation)> Writes = [];
+
         public Task<ClipboardSnapshot?> ReadAsync(CancellationToken ct = default)
         {
             Reads++;
-            if (Reads <= BusyReads) throw new System.Runtime.InteropServices.COMException("busy", ClipboardFlushRetry.ClipboardBusy);
-            if (ReadError is not null) throw ReadError;
+            if (Reads <= BusyReads)
+            {
+                throw new System.Runtime.InteropServices.COMException("busy", ClipboardFlushRetry.ClipboardBusy);
+            }
+
+            if (ReadError is not null)
+            {
+                throw ReadError;
+            }
+
             return ReadCompletion?.Task.WaitAsync(ct) ?? Task.FromResult(Snapshot);
         }
+
         public Task WriteAsync(ClipContent content, Guid operationId, CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
@@ -202,36 +254,55 @@ public sealed class AsyncClipboardServiceTests
         }
     }
 
-    sealed class PreparingBackend : IClipboardAdapter
+    private sealed class PreparingBackend : IClipboardAdapter
     {
         public TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public int Writes;
-        public Task<ClipboardSnapshot?> ReadAsync(CancellationToken ct = default) => Task.FromResult<ClipboardSnapshot?>(null);
+
+        public Task<ClipboardSnapshot?> ReadAsync(
+            CancellationToken ct = default) => Task.FromResult<ClipboardSnapshot?>(null);
+
         public Task WriteAsync(ClipContent content, Guid operationId, CancellationToken ct = default)
         {
             Writes++;
             return Task.CompletedTask;
         }
-        public async Task WriteIfCurrentAsync(ClipContent content, Guid operationId, Func<bool> isCurrent, CancellationToken ct = default)
+
+        public async Task WriteIfCurrentAsync(
+            ClipContent content,
+            Guid operationId,
+            Func<bool> isCurrent,
+            CancellationToken ct = default)
         {
             Entered.SetResult();
             await Release.Task.WaitAsync(ct);
-            if (!isCurrent()) throw new ClipboardRequestCancelledException();
+            if (!isCurrent())
+            {
+                throw new ClipboardRequestCancelledException();
+            }
+
             Writes++;
         }
     }
 
-    sealed class NoTarget : IWindowTarget
+    private sealed class NoTarget : IWindowTarget
     {
         public nint Capture() => throw new InvalidOperationException();
+
         public bool IsValid(nint handle) => throw new InvalidOperationException();
+
         public Task<bool> TryActivateAsync(nint handle, CancellationToken ct) => throw new InvalidOperationException();
+
         public bool IsForeground(nint handle) => throw new InvalidOperationException();
     }
-    sealed class NoInput : IPasteInput
+
+    private sealed class NoInput : IPasteInput
     {
-        public Task<bool> WaitForModifiersReleasedAsync(TimeSpan timeout, CancellationToken ct) => throw new InvalidOperationException();
+        public Task<bool> WaitForModifiersReleasedAsync(
+            TimeSpan timeout,
+            CancellationToken ct) => throw new InvalidOperationException();
+
         public bool SendPaste() => throw new InvalidOperationException();
     }
 }

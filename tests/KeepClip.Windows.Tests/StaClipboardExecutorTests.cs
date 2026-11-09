@@ -1,6 +1,6 @@
-using KeepClip.App.Clipboard;
-using System.IO;
 using System.Windows.Threading;
+using KeepClip.App.Clipboard;
+
 namespace KeepClip.Windows.Tests;
 
 // These tests only exercise managed delegates and the message pump. They never
@@ -18,8 +18,7 @@ public sealed class StaClipboardExecutorTests
             var apartment = Thread.CurrentThread.GetApartmentState();
             var context = SynchronizationContext.Current;
             await Task.Delay(10);
-            return (before, after: Environment.CurrentManagedThreadId, apartment, context,
-                afterContext: SynchronizationContext.Current);
+            return (before, after: Environment.CurrentManagedThreadId, apartment, context, afterContext: SynchronizationContext.Current);
         }, default);
         var next = await executor.RunAsync(() => Task.FromResult(Environment.CurrentManagedThreadId), default);
         Assert.Equal(ApartmentState.STA, state.apartment);
@@ -57,7 +56,11 @@ public sealed class StaClipboardExecutorTests
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         var ran = false;
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => executor.RunAsync(() => { ran = true; return Task.FromResult(1); }, cancellation.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => executor.RunAsync(() =>
+        {
+            ran = true;
+            return Task.FromResult(1);
+        }, cancellation.Token));
         Assert.False(ran);
         Assert.Equal(2, await executor.RunAsync(() => Task.FromResult(2), default));
     }

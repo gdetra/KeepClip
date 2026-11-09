@@ -41,10 +41,4 @@ Write-Output 'PASS: percorso esterno rifiutato'
 Set-Content -LiteralPath (Join-Path $fixtureRoot 'KeepClip.package.json') -Value '[' -Encoding UTF8
 if (@(Test-KeepClipPackage -Directory $fixtureRoot) -notcontains 'Manifest di verifica non leggibile.') { throw 'FAIL: JSON non valido non rilevato.' }
 Write-Output 'PASS: manifest non valido rilevato'
-$diagnosticScript = Join-Path $fixtureRoot 'Diagnose-Portable.ps1'
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Diagnose-Portable.ps1') -Destination $diagnosticScript
-$reportPath = Join-Path $fixtureRoot 'missing-helper-report.txt'
-& $diagnosticScript -OutputPath $reportPath | Out-Null
-if (-not (Test-Path -LiteralPath $reportPath) -or (Get-Content -LiteralPath $reportPath -Raw) -notmatch 'Modulo di verifica mancante') { throw 'FAIL: manca il rapporto se il modulo di verifica e assente.' }
-Write-Output 'PASS: rapporto salvato anche con modulo di verifica assente'
-Write-Output "8 verifiche superate ($Architecture); nessun avvio o accesso agli appunti."
+Write-Output "7 verifiche superate ($Architecture); nessun avvio o accesso agli appunti."

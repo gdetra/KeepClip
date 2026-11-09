@@ -1,4 +1,5 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project
+  Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <OutputType>WinExe</OutputType>
@@ -13,11 +14,15 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/KeepClip.ico</ApplicationIcon>
     <Platforms>x64;ARM64;x86</Platforms>
-    <Platform Condition="'$(Platform)' == '' or '$(Platform)' == 'AnyCPU'">x64</Platform>
+    <Platform
+      Condition="'$(Platform)' == '' or '$(Platform)' == 'AnyCPU'">x64</Platform>
     <PlatformTarget>$(Platform)</PlatformTarget>
-    <RuntimeIdentifier Condition="'$(Platform)' == 'x64'">win-x64</RuntimeIdentifier>
-    <RuntimeIdentifier Condition="'$(Platform)' == 'ARM64'">win-arm64</RuntimeIdentifier>
-    <RuntimeIdentifier Condition="'$(Platform)' == 'x86'">win-x86</RuntimeIdentifier>
+    <RuntimeIdentifier
+      Condition="'$(Platform)' == 'x64'">win-x64</RuntimeIdentifier>
+    <RuntimeIdentifier
+      Condition="'$(Platform)' == 'ARM64'">win-arm64</RuntimeIdentifier>
+    <RuntimeIdentifier
+      Condition="'$(Platform)' == 'x86'">win-x86</RuntimeIdentifier>
     <RuntimeIdentifiers>win-x64;win-arm64;win-x86</RuntimeIdentifiers>
     <UseWinUI>true</UseWinUI>
     <EnableMsixTooling>true</EnableMsixTooling>
@@ -25,21 +30,43 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
     <PublishTrimmed>false</PublishTrimmed>
+    <UpdateAssemblyInfo>false</UpdateAssemblyInfo>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <GitVersion_NoFetchEnabled>true</GitVersion_NoFetchEnabled>
+    <GitVersion_NoNormalizeEnabled>true</GitVersion_NoNormalizeEnabled>
   </PropertyGroup>
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WPF"/>
-    <Content Update="Assets/**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
-    <ProjectReference Include="../KeepClip.Application/KeepClip.Application.csproj"/>
-    <ProjectReference Include="../KeepClip.Storage/KeepClip.Storage.csproj"/>
-    <PackageReference Include="Microsoft.WindowsAppSDK"/>
-    <PackageReference Include="CommunityToolkit.Mvvm"/>
+    <PackageReference
+      Include="GitVersion.MsBuild"
+      PrivateAssets="all" />
+    <PackageReference
+      Include="Microsoft.Extensions.DependencyInjection" />
+    <FrameworkReference
+      Include="Microsoft.WindowsDesktop.App.WPF" />
+    <Content
+      Update="Assets/**"
+      CopyToOutputDirectory="PreserveNewest"
+      CopyToPublishDirectory="PreserveNewest" />
+    <ProjectReference
+      Include="../KeepClip.Application/KeepClip.Application.csproj" />
+    <ProjectReference
+      Include="../KeepClip.Storage/KeepClip.Storage.csproj" />
+    <PackageReference
+      Include="Microsoft.WindowsAppSDK" />
+    <PackageReference
+      Include="CommunityToolkit.Mvvm" />
+    <PackageReference
+      Include="Microsoft.Windows.SDK.BuildTools.WinUIAnalyzer"
+      PrivateAssets="all" />
   </ItemGroup>
   <!-- Rider shows the linked runtime payload as source files during design-time builds. -->
-  <Target Name="RemoveWindowsAppSdkPayloadFromDesignTime"
-          AfterTargets="AddMicrosoftWindowsAppSDKPayloadFilesFromComponents"
-          Condition="'$(DesignTimeBuild)' == 'true'">
+  <Target
+    Name="RemoveWindowsAppSdkPayloadFromDesignTime"
+    AfterTargets="AddMicrosoftWindowsAppSDKPayloadFilesFromComponents"
+    Condition="'$(DesignTimeBuild)' == 'true'">
     <ItemGroup>
-      <None Remove="@(MicrosoftWindowsAppSDKFiles)" />
+      <None
+        Remove="@(MicrosoftWindowsAppSDKFiles)" />
     </ItemGroup>
   </Target>
 </Project>

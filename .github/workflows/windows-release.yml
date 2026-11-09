@@ -1,0 +1,168 @@
+name: Windows Release
+run-name: Prepare ${{ inputs.channel }} release ${{ inputs.tag }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag stabile su main con CI verde (es. v1.0.1)'
+        required: true
+        type: string
+      channel:
+        description: 'Pacchetti da preparare; caricamento e pubblicazione restano manuali'
+        required: true
+        type: choice
+        default: store
+        options:
+          - store
+          - portable
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: windows-release-${{ inputs.channel }}-${{ inputs.tag }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  version:
+    name: Validate release source
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.release.outputs.sha }}
+      semver: ${{ steps.release.outputs.semver }}
+      store_version: ${{ steps.release.outputs.store_version }}
+    steps:
+      - name: Require workflow launch from main
+        env:
+          WORKFLOW_REF: ${{ github.ref }}
+        run: |
+          if ($env:WORKFLOW_REF -cne 'refs/heads/main') {
+            throw 'Avvia Windows Release dal branch main e indica il tag nel campo tag.'
+          }
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Resolve tag and derive Store version
+        id: release
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+        run: |
+          $release = ./scripts/Get-ReleaseVersion.ps1 -Tag $env:RELEASE_TAG -Channel $env:RELEASE_CHANNEL
+          "sha=$($release.Sha)" >> $env:GITHUB_OUTPUT
+          "semver=$($release.SemVer)" >> $env:GITHUB_OUTPUT
+          "store_version=$($release.StoreVersion)" >> $env:GITHUB_OUTPUT
+      - name: Require successful CI for the exact commit
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          . ./scripts/ReleaseChecks.ps1
+          $uri = "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/actions/workflows/windows-ci.yml/runs?head_sha=$env:RELEASE_SHA&per_page=100"
+          $headers = @{ Authorization="Bearer $env:GH_TOKEN"; Accept='application/vnd.github+json' }
+          $response = Invoke-RestMethod -Uri $uri -Headers $headers
+          $run = Assert-KeepClipReleaseCI -Runs @($response.workflow_runs) -Sha $env:RELEASE_SHA
+          "url=$($run.html_url)" >> $env:GITHUB_OUTPUT
+      - name: Check out the validated release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.release.outputs.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+          dotnet-version: '8.0.x'
+      - name: Prepare version metadata once
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+          RELEASE_SEMVER: ${{ steps.release.outputs.semver }}
+          STORE_VERSION: ${{ steps.release.outputs.store_version }}
+          CI_URL: ${{ steps.ci.outputs.url }}
+        run: |
+          dotnet tool restore
+          if ($LASTEXITCODE -ne 0) { throw 'GitVersion tool restore failed.' }
+          $version = ./scripts/Get-Version.ps1 -OutputPath ./artifacts/version/KeepClip.version.json
+          if ($version.Sha -cne $env:RELEASE_SHA -or $version.SemVer -cne $env:RELEASE_SEMVER) {
+            throw 'GitVersion non corrisponde al tag e al commit selezionati.'
+          }
+          [ordered]@{
+            Tag=$env:RELEASE_TAG; Sha=$env:RELEASE_SHA; SemVer=$env:RELEASE_SEMVER
+            StoreVersion=$env:STORE_VERSION; Channel=$env:RELEASE_CHANNEL; CI=$env:CI_URL
+          } | ConvertTo-Json | Set-Content ./artifacts/version/KeepClip.release.json -Encoding utf8
+          "Release $env:RELEASE_TAG - commit $env:RELEASE_SHA - canale $env:RELEASE_CHANNEL" >> $env:GITHUB_STEP_SUMMARY
+          "CI verificata: $env:CI_URL" >> $env:GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v6
+        with:
+          name: KeepClip-release-metadata
+          path: artifacts/version/*.json
+          if-no-files-found: error
+          retention-days: 90
+
+  package:
+    name: Prepare ${{ inputs.channel }} (${{ matrix.architecture }})
+    needs: version
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [x64, arm64, x86]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - name: Restore application with locked dependencies
+        run: dotnet restore src/KeepClip.App/KeepClip.App.csproj -p:Platform=${{ matrix.architecture }} --locked-mode
+      - name: Download validated version metadata
+        uses: actions/download-artifact@v6
+        with:
+          name: KeepClip-release-metadata
+          path: artifacts/version
+      - name: Publish the selected commit
+        run: ./scripts/Publish-App.ps1 -Architecture ${{ matrix.architecture }} -NoRestore -PublishDirectory ./artifacts/publish-${{ matrix.architecture }} -VersionFile ./artifacts/version/KeepClip.version.json
+      - name: Build unsigned Store MSIX
+        if: inputs.channel == 'store'
+        env:
+          STORE_VERSION: ${{ needs.version.outputs.store_version }}
+        run: ./scripts/Build-Package.ps1 -SkipBuild -Architecture ${{ matrix.architecture }} -StoreVersion $env:STORE_VERSION -PublishDirectory ./artifacts/publish-${{ matrix.architecture }} -OutputDirectory ./artifacts/packages
+      - name: Build portable ZIP
+        if: inputs.channel == 'portable'
+        run: ./scripts/Build-Portable.ps1 -SkipBuild -Architecture ${{ matrix.architecture }} -PublishDirectory ./artifacts/publish-${{ matrix.architecture }} -OutputDirectory ./artifacts/packages
+      - name: Record checksums and release provenance
+        env:
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+        run: |
+          $extension = if ($env:RELEASE_CHANNEL -eq 'store') { '.msix' } else { '.zip' }
+          $packages = @(Get-ChildItem ./artifacts/packages -File | Where-Object Extension -In @('.zip', '.msix'))
+          if ($packages.Count -ne 1 -or $packages[0].Extension -ne $extension) { throw 'Expected exactly one package for the selected channel.' }
+          '{0}  {1}' -f (Get-FileHash -LiteralPath $packages[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $packages[0].Name | Set-Content ./artifacts/packages/SHA256SUMS.txt -Encoding utf8
+          Copy-Item -LiteralPath ./artifacts/version/KeepClip.release.json -Destination ./artifacts/packages/KeepClip.release.json
+      - name: Upload release packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: KeepClip-${{ inputs.channel }}-${{ needs.version.outputs.semver }}-windows-${{ matrix.architecture }}
+          path: artifacts/packages/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 90

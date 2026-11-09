@@ -1,38 +1,76 @@
 using System.Runtime.InteropServices;
-using System.Diagnostics;
 using KeepClip.App.Interop;
 using KeepClip.Application;
 using KeepClip.Application.Selection;
 using Microsoft.UI.Dispatching;
+
 namespace KeepClip.App.Clipboard;
-internal sealed class SelectionCopyService(DispatcherQueue dispatcher, HistoryService history, SelectionCopyCoordinator copy, Func<bool> enabled) : IDisposable
+
+internal sealed class SelectionCopyService(
+    DispatcherQueue dispatcher,
+    HistoryService history,
+    SelectionCopyCoordinator copy,
+    Func<bool> enabled) : IDisposable
 {
-    NativeMethods.MouseHookProc? mouseCallback;
-    nint hook;
-    long version, lastDownTime;
-    NativeMethods.Point down, previousDown;
-    uint downSequence;
-    bool pressed, doubleClick, reading;
-    Request? pending;
-    CancellationTokenSource? lifetime;
+    private NativeMethods.MouseHookProc? _mouseCallback;
+    private nint _hook;
+    private long _version, _lastDownTime;
+    private NativeMethods.Point _down, _previousDown;
+    private uint _downSequence;
+    private bool _pressed, _doubleClick, _reading;
+    private Request? _pending;
+    private CancellationTokenSource? _lifetime;
+
     public event Action<string>? Problem;
-    sealed record Request(NativeMethods.Point Point, NativeMethods.Point Start, nint Window, uint Sequence, long Generation, long Version, CancellationToken Token);
+
+    private sealed record Request(
+        NativeMethods.Point Point,
+        NativeMethods.Point Start,
+        nint Window,
+        uint Sequence,
+        long Generation,
+        long Version,
+        CancellationToken Token);
+
     public bool Start()
     {
-        if (hook != 0) return true;
-        mouseCallback ??= OnMouse;
-        lifetime = new();
-        hook = NativeMethods.SetWindowsHookEx(14, mouseCallback, NativeMethods.GetModuleHandle(null), 0);
-        if (hook != 0) return true;
-        lifetime.Dispose(); lifetime = null; DiagnosticLog.Write($"selection-hook error={Marshal.GetLastWin32Error()}"); return false;
+        if (_hook != 0)
+        {
+            return true;
+        }
+
+        _mouseCallback ??= OnMouse;
+        _lifetime = new();
+        _hook = NativeMethods.SetWindowsHookEx(14, _mouseCallback, NativeMethods.GetModuleHandle(null), 0);
+        if (_hook != 0)
+        {
+            return true;
+        }
+
+        _lifetime.Dispose();
+        _lifetime = null;
+        return false;
     }
+
     public void Stop()
     {
-        Interlocked.Increment(ref version); pressed = false; lastDownTime = 0; pending = null; lifetime?.Cancel(); lifetime?.Dispose(); lifetime = null;
-        if (hook != 0) { NativeMethods.UnhookWindowsHookEx(hook); hook = 0; }
-        GC.KeepAlive(mouseCallback);
+        Interlocked.Increment(ref _version);
+        _pressed = false;
+        _lastDownTime = 0;
+        _pending = null;
+        _lifetime?.Cancel();
+        _lifetime?.Dispose();
+        _lifetime = null;
+        if (_hook != 0)
+        {
+            NativeMethods.UnhookWindowsHookEx(_hook);
+            _hook = 0;
+        }
+
+        GC.KeepAlive(_mouseCallback);
     }
-    nint OnMouse(int code, nuint message, nint data)
+
+    private nint OnMouse(int code, nuint message, nint data)
     {
         try
         {
@@ -43,97 +81,132 @@ internal sealed class SelectionCopyService(DispatcherQueue dispatcher, HistorySe
                 {
                     if (message == 0x0201)
                     {
-                        Interlocked.Increment(ref version); pending = null; down = mouse.Point; downSequence = NativeMethods.GetClipboardSequenceNumber(); pressed = true;
+                        Interlocked.Increment(ref _version);
+                        _pending = null;
+                        _down = mouse.Point;
+                        _downSequence = NativeMethods.GetClipboardSequenceNumber();
+                        _pressed = true;
                         var now = Environment.TickCount64;
-                        doubleClick = lastDownTime != 0 && now - lastDownTime <= NativeMethods.GetDoubleClickTime() && Math.Abs(down.X - previousDown.X) <= 4 && Math.Abs(down.Y - previousDown.Y) <= 4;
-                        lastDownTime = now; previousDown = down;
+                        _doubleClick = _lastDownTime != 0 && now - _lastDownTime <= NativeMethods.GetDoubleClickTime() && Math.Abs(_down.X - _previousDown.X) <= 4 && Math.Abs(_down.Y - _previousDown.Y) <= 4;
+                        _lastDownTime = now;
+                        _previousDown = _down;
                     }
-                    else if (pressed)
+                    else if (_pressed)
                     {
-                        pressed = false;
-                        var drag = Math.Abs(mouse.Point.X - down.X) >= 3 || Math.Abs(mouse.Point.Y - down.Y) >= 3;
+                        _pressed = false;
+                        var drag = Math.Abs(mouse.Point.X - _down.X) >= 3 || Math.Abs(mouse.Point.Y - _down.Y) >= 3;
                         var shift = (NativeMethods.GetAsyncKeyState(0x10) & 0x8000) != 0;
-                        var modifiers = new[] { 0x11, 0x12, 0x5B, 0x5C }.Any(key => (NativeMethods.GetAsyncKeyState(key) & 0x8000) != 0);
-                        var window = NativeMethods.GetForegroundWindow(); NativeMethods.GetWindowThreadProcessId(window, out var process);
-                        if ((drag || doubleClick || shift) && !modifiers && process != 0 && process != Environment.ProcessId && lifetime is not null)
+                        var modifiers = new[]
                         {
-                            var request = new Request(mouse.Point, down, window, downSequence, history.CaptureGeneration, Interlocked.Increment(ref version), lifetime.Token);
+                            0x11,
+                            0x12,
+                            0x5B,
+                            0x5C
+                        }.Any(key => (NativeMethods.GetAsyncKeyState(key) & 0x8000) != 0);
+                        var window = NativeMethods.GetForegroundWindow();
+                        NativeMethods.GetWindowThreadProcessId(window, out var process);
+                        if ((drag || _doubleClick || shift) && !modifiers && process != 0 && process != Environment.ProcessId && _lifetime is not null)
+                        {
+                            var request = new Request(
+                                mouse.Point,
+                                _down,
+                                window,
+                                _downSequence,
+                                history.CaptureGeneration,
+                                Interlocked.Increment(ref _version),
+                                _lifetime.Token);
                             dispatcher.TryEnqueue(() =>
                             {
-                                if (!Current(request)) { DiagnosticLog.Write($"selection-discard request={request.Version} stage=queue reason={InvalidReason(request)}"); return; }
-                                DiagnosticLog.Write($"selection-gesture request={request.Version} gesture={(drag ? "drag" : doubleClick ? "double-click" : "shift-click")}");
-                                pending = request; if (!reading) ReadPending();
+                                if (!Current(request))
+                                {
+                                    return;
+                                }
+
+                                _pending = request;
+                                if (!_reading)
+                                {
+                                    ReadPending();
+                                }
                             });
                         }
                     }
                 }
             }
         }
-        catch { /* Never let an exception cross the native callback boundary. */ }
-        return NativeMethods.CallNextHookEx(hook, code, message, data);
+        catch
+        { /* Never let an exception cross the native callback boundary. */
+        }
+
+        return NativeMethods.CallNextHookEx(_hook, code, message, data);
     }
-    bool Current(Request request) => !request.Token.IsCancellationRequested && request.Version == Volatile.Read(ref version) && enabled() &&
-        !history.IsPaused && history.CaptureGeneration == request.Generation && NativeMethods.GetForegroundWindow() == request.Window;
-    string InvalidReason(Request request, bool checkClipboard = false)
+
+    private bool Current(
+        Request request) => !request.Token.IsCancellationRequested && request.Version == Volatile.Read(ref _version) && enabled() && !history.IsPaused && history.CaptureGeneration == request.Generation && NativeMethods.GetForegroundWindow() == request.Window;
+
+    private async void ReadPending()
     {
-        if (request.Token.IsCancellationRequested) return "stopped";
-        if (request.Version != Volatile.Read(ref version)) return "new-gesture";
-        if (!enabled()) return "disabled-or-not-ready";
-        if (history.IsPaused || history.CaptureGeneration != request.Generation) return "capture-state-changed";
-        if (NativeMethods.GetForegroundWindow() != request.Window) return "foreground-changed";
-        if (checkClipboard && NativeMethods.GetClipboardSequenceNumber() != request.Sequence) return "clipboard-changed";
-        return "none";
-    }
-    static string ProcessLabel(uint process)
-    {
-        try { using var app = Process.GetProcessById(checked((int)process)); return app.ProcessName.Replace((char)13, (char)95).Replace((char)10, (char)95); }
-        catch { return "unavailable"; }
-    }
-    async void ReadPending()
-    {
-        reading = true;
+        _reading = true;
         try
         {
-            while (pending is { } request)
+            while (_pending is { } request)
             {
-                pending = null;
+                _pending = null;
                 try
                 {
                     NativeMethods.GetWindowThreadProcessId(request.Window, out var process);
-                    DiagnosticLog.Write($"selection-begin request={request.Version} process={process} app={ProcessLabel(process)} sequence={request.Sequence}");
-                    var attempt = 0; var lastReason = "";
-                    bool CanRead()
+                    bool CanRead() => Current(request) && NativeMethods.GetClipboardSequenceNumber() == request.Sequence;
+                    var text = await SelectionReadRetry.ReadAsync(
+                        async token =>
+                        {
+                            try
+                            {
+                                return await Task.Run(() => SelectedTextReader.Read(
+                                    request.Point,
+                                    request.Start,
+                                    process), token);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                throw;
+                            }
+                            catch (Exception)
+                            {
+                                return null;
+                            }
+                        },
+                        CanRead,
+                        (ms, token) => Task.Delay(ms, token),
+                        request.Token);
+                    if (text is null || text.IsPassword || text.IsOwnApp || text.IsReadOnly is not true || !CanRead())
                     {
-                        var reason = InvalidReason(request, checkClipboard: true);
-                        if (reason != "none" && reason != lastReason) DiagnosticLog.Write($"selection-discard request={request.Version} stage=read reason={reason}");
-                        lastReason = reason; return reason == "none";
+                        continue;
                     }
-                    var text = await SelectionReadRetry.ReadAsync(async token =>
-                    {
-                        attempt++;
-                        try { return await Task.Run(() => SelectedTextReader.Read(request.Point, request.Start, process, detail => DiagnosticLog.Write($"selection-probe request={request.Version} attempt={attempt} {detail}")), token); }
-                        catch (OperationCanceledException) { throw; }
-                        catch (Exception ex) { DiagnosticLog.Write($"selection-reader-unavailable request={request.Version} attempt={attempt} type={ex.GetType().Name} hresult=0x{ex.HResult:X8}"); return null; }
-                    }, CanRead,
-                    (ms, token) => Task.Delay(ms, token), request.Token);
-                    DiagnosticLog.Write($"selection-read request={request.Version} attempts={attempt} found={text?.Text is not null} password={text?.IsPassword == true} own={text?.IsOwnApp == true} readOnly={text?.IsReadOnly?.ToString() ?? "unknown"}");
-                    if (text is null || text.IsPassword || text.IsOwnApp || text.IsReadOnly is not true || !CanRead()) continue;
+
                     var origin = await SourceAppResolver.ResolveAsync(process);
-                    if (!CanRead()) continue;
-                    DiagnosticLog.Write($"selection-copy-begin request={request.Version}");
-                    var saved = await copy.CopyAsync(text with { Source = origin }, () => Current(request), request.Token);
-                    DiagnosticLog.Write($"selection-copy request={request.Version} captured={saved} reason={InvalidReason(request)}");
+                    if (!CanRead())
+                    {
+                        continue;
+                    }
+
+                    await copy.CopyAsync(text with { Source = origin }, () => Current(request), request.Token);
                 }
-                catch (ClipboardWriteSupersededException) { DiagnosticLog.Write($"selection-discard request={request.Version} stage=flush reason=clipboard-changed"); }
-                catch (OperationCanceledException) { DiagnosticLog.Write($"selection-discard request={request.Version} stage=cancel reason={InvalidReason(request)}"); }
-                catch (Exception ex)
+                catch (ClipboardWriteSupersededException)
                 {
-                    DiagnosticLog.Write($"selection-copy-error request={request.Version} type={ex.GetType().Name} hresult=0x{ex.HResult:X8}");
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                catch (Exception)
+                {
                     Problem?.Invoke("Impossibile completare la copia alla selezione. Riprova con Ctrl+C.");
                 }
             }
         }
-        finally { reading = false; }
+        finally
+        {
+            _reading = false;
+        }
     }
+
     public void Dispose() => Stop();
 }

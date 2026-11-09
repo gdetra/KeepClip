@@ -1,24 +1,48 @@
-using System.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using KeepClip.Domain.History;
+
 namespace KeepClip.App.Shelf;
-public sealed class ShelfViewModel : INotifyPropertyChanged
+
+public sealed partial class ShelfViewModel : ObservableObject
 {
-    public event PropertyChangedEventHandler? PropertyChanged;
-    public IReadOnlyList<ClipEntry> Entries { get; private set; } = [];
-    IReadOnlyList<ClipEntry> all = [];
-    ClipEntry? selected;
-    string query = "";
-    bool pinned;
-    public ClipEntry? SelectedEntry { get => selected; set { selected = value; Notify(nameof(SelectedEntry)); } }
-    public string Query { get => query; set { query = value; Filter(); Notify(nameof(Query)); } }
-    public bool ShowPinnedOnly { get => pinned; set { pinned = value; Filter(); Notify(nameof(ShowPinnedOnly)); } }
-    public void Refresh(IReadOnlyList<ClipEntry> entries) { all = entries; Filter(); }
-    void Filter()
+    private IReadOnlyList<ClipEntry> _allEntries = [];
+
+    [ObservableProperty]
+    public partial IReadOnlyList<ClipEntry> Entries { get; private set; } = [];
+
+    [ObservableProperty]
+    public partial ClipEntry? SelectedEntry { get; set; }
+
+    [ObservableProperty]
+    public partial string Query { get; set; } = "";
+
+    [ObservableProperty]
+    public partial bool ShowPinnedOnly { get; set; }
+
+    public void Refresh(IReadOnlyList<ClipEntry> entries)
     {
-        var previous = selected?.Id;
-        Entries = all.Where(x => (!pinned || x.IsPinned) && (string.IsNullOrWhiteSpace(query) || ((x.Text?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false) || (x.Files?.Any(file => Path.GetFileName(file.Path).Contains(query, StringComparison.OrdinalIgnoreCase)) ?? false)))).ToArray();
-        selected = Entries.FirstOrDefault(x => x.Id == previous) ?? Entries.FirstOrDefault();
-        Notify(nameof(Entries)); Notify(nameof(SelectedEntry));
+        _allEntries = entries;
+        Filter();
     }
-    void Notify(string name) => PropertyChanged?.Invoke(this, new(name));
+
+    partial void OnQueryChanged(string value) => Filter();
+
+    partial void OnShowPinnedOnlyChanged(bool value) => Filter();
+
+    private void Filter()
+    {
+        var selectedId = SelectedEntry?.Id;
+        Entries = _allEntries.Where(MatchesFilter).ToArray();
+        SelectedEntry = Entries.FirstOrDefault(entry => entry.Id == selectedId) ?? Entries.FirstOrDefault();
+    }
+
+    private bool MatchesFilter(ClipEntry entry)
+    {
+        if (ShowPinnedOnly && !entry.IsPinned)
+        {
+            return false;
+        }
+
+        return string.IsNullOrWhiteSpace(Query) || (entry.Text?.Contains(Query, StringComparison.OrdinalIgnoreCase) ?? false) || (entry.Files?.Any(file => Path.GetFileName(file.Path).Contains(Query, StringComparison.OrdinalIgnoreCase)) ?? false);
+    }
 }

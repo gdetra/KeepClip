@@ -1,11 +1,20 @@
 namespace KeepClip.Application.Paste;
+
 public sealed class ForegroundHistory(Func<nint, bool> isDestination)
 {
-    nint previous;
-    public void Observe(nint window) { if (isDestination(window)) previous = window; }
+    private nint _previous;
+
+    public void Observe(nint window)
+    {
+        if (isDestination(window))
+        {
+            _previous = window;
+        }
+    }
+
     public nint Resolve(nint currentWindow)
     {
         Observe(currentWindow);
-        return isDestination(previous) ? previous : 0;
+        return isDestination(_previous) ? _previous : 0;
     }
 }

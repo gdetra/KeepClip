@@ -1,4 +1,3 @@
-using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using KeepClip.App.Shelf;
@@ -29,13 +28,18 @@ public class HeaderIconTests
         Assert.Null(HeaderIcon.TrimTransparentMargins(EncodeIcon((_, _) => 0)));
     }
 
-    static byte[] EncodeIcon(Func<int, int, byte> alpha)
+    private static byte[] EncodeIcon(Func<int, int, byte> alpha)
     {
         const int size = 8;
         var pixels = new byte[size * size * 4];
         for (var y = 0; y < size; y++)
+        {
             for (var x = 0; x < size; x++)
+            {
                 pixels[(y * size + x) * 4 + 3] = alpha(x, y);
+            }
+        }
+
         var bitmap = BitmapSource.Create(size, size, 96, 96, PixelFormats.Bgra32, null, pixels, size * 4);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));

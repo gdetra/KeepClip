@@ -12,6 +12,11 @@ $valid = [pscustomobject]@{
 $checked = Assert-KeepClipVersion -Version $valid
 if ($checked.SemVer -ne '0.2.0-ci.12' -or $checked.AssemblySemFileVer -ne '0.2.0.55012') { throw 'Valid version metadata changed.' }
 $checks = 1
+$public = ConvertTo-KeepClipPublicVersion -Version $valid
+if ($public.SemVer -ne '0.2.0' -or $public.InformationalVersion -ne '0.2.0' -or $public.AssemblySemFileVer -ne $valid.AssemblySemFileVer -or $public.Sha -ne $sha) {
+    throw 'Public versions must be numeric while retaining build and source identity.'
+}
+$checks++
 foreach ($mutation in @(
     @{ Field = 'SemVer'; Value = '../outside' },
     @{ Field = 'SemVer'; Value = '9.9.9' },

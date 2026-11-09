@@ -14,8 +14,6 @@ if (-not $SkipBuild) {
 }
 . (Join-Path $PSScriptRoot 'Versioning.ps1')
 $version = Get-KeepClipPublishedVersion -Directory $publishRoot
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'PortablePackage.ps1') -Destination (Join-Path $publishRoot 'KeepClip.Package.ps1')
-foreach ($name in @('Diagnose-Portable.ps1','Avvia-con-diagnostica.cmd')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $publishRoot $name) }
 . (Join-Path $PSScriptRoot 'PortablePackage.ps1')
 if (Test-Path -LiteralPath (Join-Path $publishRoot 'AppxManifest.xml')) { throw 'Usa un publish pulito: la cartella contiene gia un manifest MSIX.' }
 Write-KeepClipPackageManifest -Directory $publishRoot -Architecture $Architecture
