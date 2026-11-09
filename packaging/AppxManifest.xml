@@ -8,7 +8,7 @@
   <Identity
     Name="15287gdetra.KeepClip"
     Publisher="CN=58095AEE-5C8D-437E-90EB-9B5E2E56469C"
-    Version="0.1.0.0"
+    Version="1.0.0.0"
     ProcessorArchitecture="x64" />
   <Properties>
     <DisplayName>KeepClip</DisplayName>

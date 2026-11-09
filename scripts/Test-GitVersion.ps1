@@ -22,22 +22,34 @@ try {
     Invoke-FixtureGit -GitArguments @('add','GitVersion.yml')
     Invoke-FixtureGit -GitArguments @('commit','-m','Initial fixture')
     $initial = Read-FixtureVersion
-    if ($initial.SemVer -notmatch '^0\.2\.0-ci\.[0-9]+$') { throw "Unexpected initial version: $($initial.SemVer)" }
+    if ($initial.InformationalVersion -ne '1.0.0') { throw 'Executable version must not contain a branch name or prerelease suffix.' }
+    if ($initial.SemVer -notmatch '^1\.0\.0-ci\.[0-9]+$') { throw "Unexpected initial version: $($initial.SemVer)" }
     Invoke-FixtureGit -GitArguments @('commit','--allow-empty','-m','Another build')
     $next = Read-FixtureVersion
     if ([version]$next.AssemblySemFileVer -le [version]$initial.AssemblySemFileVer) { throw 'Development file version did not increase.' }
-    Invoke-FixtureGit -GitArguments @('tag','v0.2.0')
+    Invoke-FixtureGit -GitArguments @('tag','v1.0.0')
     $release = Read-FixtureVersion
-    if ($release.SemVer -ne '0.2.0' -or $release.AssemblySemFileVer -ne '0.2.0.60000') { throw "Unexpected release version: $($release.SemVer) / $($release.AssemblySemFileVer)" }
+    if ($release.SemVer -ne '1.0.0' -or $release.AssemblySemFileVer -ne '1.0.0.60000') { throw "Unexpected release version: $($release.SemVer) / $($release.AssemblySemFileVer)" }
     if ([version]$release.AssemblySemFileVer -le [version]$next.AssemblySemFileVer) { throw 'Release would downgrade the development MSIX.' }
-    Invoke-FixtureGit -GitArguments @('commit','--allow-empty','-m','Fix after release')
+    Invoke-FixtureGit -GitArguments @('commit','--allow-empty','-m','fix: correct clipboard behavior')
     $patch = Read-FixtureVersion
-    if ($patch.SemVer -notmatch '^0\.2\.1-ci\.[0-9]+$') { throw "Unexpected next patch: $($patch.SemVer)" }
+    if ($patch.SemVer -notmatch '^1\.0\.1-ci\.[0-9]+$') { throw "Unexpected next patch: $($patch.SemVer)" }
     Invoke-FixtureGit -GitArguments @('switch','-c','feature/example')
     Invoke-FixtureGit -GitArguments @('commit','--allow-empty','-m','Feature work')
     $feature = Read-FixtureVersion
     if ($feature.SemVer -notmatch '-example\.') { throw "Missing feature label: $($feature.SemVer)" }
-    Write-Output '5 GitVersion history checks passed: development, increments, release tag, next patch and feature branch.'
+    Invoke-FixtureGit -GitArguments @('switch','main')
+    Invoke-FixtureGit -GitArguments @('commit','--allow-empty','-m','feat(settings): add information page')
+    $minor = Read-FixtureVersion
+    if ($minor.SemVer -notmatch '^1\.1\.0-ci\.[0-9]+$') { throw "Unexpected minor version: $($minor.SemVer)" }
+    Invoke-FixtureGit -GitArguments @('commit','--allow-empty','-m','fix!: change incompatible data format')
+    $major = Read-FixtureVersion
+    if ($major.SemVer -notmatch '^2\.0\.0-ci\.[0-9]+$') { throw "Unexpected major version: $($major.SemVer)" }
+    Invoke-FixtureGit -GitArguments @('tag','v2.0.0')
+    Invoke-FixtureGit -GitArguments @('commit','--allow-empty','-m',"refactor: replace storage format`n`nBREAKING CHANGE: existing formats require migration")
+    $footer = Read-FixtureVersion
+    if ($footer.SemVer -notmatch '^3\.0\.0-ci\.[0-9]+$') { throw "Unexpected breaking footer version: $($footer.SemVer)" }
+    Write-Output '8 GitVersion history checks passed: development counter, release tag, patch, feature branch, minor, major and breaking footer.'
 }
 finally {
     Pop-Location

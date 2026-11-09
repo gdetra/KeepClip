@@ -1,6 +1,11 @@
 workflow: GitHubFlow/v1
-next-version: 0.2.0
+next-version: 1.0.0
 tag-prefix: '[vV]?'
+assembly-informational-format: '{Major}.{Minor}.{Patch}'
+commit-message-incrementing: Enabled
+major-version-bump-message: '\A[a-z]+(?:\([^)]+\))?!:|(?m:^BREAKING[ -]CHANGE:)'
+minor-version-bump-message: '\Afeat(?:\([^)]+\))?:'
+patch-version-bump-message: '\A(?:fix|perf)(?:\([^)]+\))?:'
 assembly-file-versioning-format: '{Major}.{Minor}.{Patch}.{WeightedPreReleaseNumber ?? 0}'
 branches:
   main:

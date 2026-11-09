@@ -30,8 +30,15 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
     <PublishTrimmed>false</PublishTrimmed>
+    <UpdateAssemblyInfo>false</UpdateAssemblyInfo>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <GitVersion_NoFetchEnabled>true</GitVersion_NoFetchEnabled>
+    <GitVersion_NoNormalizeEnabled>true</GitVersion_NoNormalizeEnabled>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference
+      Include="GitVersion.MsBuild"
+      PrivateAssets="all" />
     <PackageReference
       Include="Microsoft.Extensions.DependencyInjection" />
     <FrameworkReference

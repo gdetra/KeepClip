@@ -1,3 +1,15 @@
+function ConvertTo-KeepClipPublicVersion {
+    param([Parameter(Mandatory=$true)]$Version)
+    $numericVersion = ([string]$Version.SemVer).Split('-')[0]
+    return Assert-KeepClipVersion -Version ([pscustomobject][ordered]@{
+        SemVer = $numericVersion
+        AssemblySemVer = $Version.AssemblySemVer
+        AssemblySemFileVer = $Version.AssemblySemFileVer
+        InformationalVersion = $numericVersion
+        Sha = $Version.Sha
+    })
+}
+
 function Assert-KeepClipStoreVersion {
     param([AllowEmptyString()][string]$Version)
     if ($Version -cnotmatch '\A[1-9][0-9]{0,4}\.(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})\.0\z') {
