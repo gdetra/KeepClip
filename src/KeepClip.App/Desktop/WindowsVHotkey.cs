@@ -31,9 +31,13 @@ internal sealed class WindowsVHotkey : IDisposable
     private readonly NativeMethods.KeyboardHookProc _callback;
     private readonly Func<bool> _postShortcut;
     private readonly WindowsVGesture _gesture = new();
+    // A busy UI thread can cause Windows to silently remove a low-level hook.
+    // Install, pump and remove it on an independent message loop instead.
+    private readonly KeyboardHookThread _thread = new();
     private nint _hook;
     private nuint _generation;
     private bool _enabled;
+    private bool _disposed;
 
     public WindowsVHotkey(nint window)
     {
@@ -42,7 +46,9 @@ internal sealed class WindowsVHotkey : IDisposable
         _postShortcut = PostShortcut;
     }
 
-    public bool SetEnabled(bool value)
+    public bool SetEnabled(bool value) => _thread.Invoke(() => SetEnabledCore(value));
+
+    private bool SetEnabledCore(bool value)
     {
         if (_enabled == value)
         {
@@ -75,7 +81,7 @@ internal sealed class WindowsVHotkey : IDisposable
         return true;
     }
 
-    public bool IsCurrent(nuint token) => _enabled && token == _generation;
+    public bool IsCurrent(nuint token) => _thread.Invoke(() => _enabled && token == _generation);
 
     private nint OnKeyboard(int code, nuint message, nint data)
     {
@@ -129,8 +135,19 @@ internal sealed class WindowsVHotkey : IDisposable
 
     public void Dispose()
     {
-        SetEnabled(false);
-        RemoveHook();
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _thread.Invoke(() =>
+        {
+            SetEnabledCore(false);
+            RemoveHook();
+            return true;
+        });
+        _thread.Dispose();
         GC.KeepAlive(_callback);
     }
 }
