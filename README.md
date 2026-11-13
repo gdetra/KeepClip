@@ -19,6 +19,8 @@ KeepClip keeps text, images, and file references in a searchable panel. Pin freq
 
 ## Downloads
 
+See the [release notes](CHANGELOG.md) for new features and fixes.
+
 - [Get KeepClip from Microsoft Store](https://apps.microsoft.com/detail/9pjtns091173?ocid=webpdpshare)
 
 - [Portable builds for x64, ARM64, and x86](https://github.com/gdetra/KeepClip/actions/workflows/windows-release.yml)

@@ -19,6 +19,18 @@
       Include="xunit.runner.visualstudio" />
   </ItemGroup>
   <ItemGroup>
+    <Compile
+      Include="../../src/KeepClip.App/Desktop/KeyboardHookThread.cs"
+      Link="Desktop/KeyboardHookThread.cs" />
+    <Compile
+      Include="../../src/KeepClip.App/Desktop/WindowsVHotkey.cs"
+      Link="Desktop/WindowsVHotkey.cs" />
+    <Compile
+      Include="../../src/KeepClip.App/Desktop/WindowsVGesture.cs"
+      Link="Desktop/WindowsVGesture.cs" />
+    <Compile
+      Include="../../src/KeepClip.App/Interop/NativeMethods.cs"
+      Link="Interop/NativeMethods.cs" />
     <Using
       Include="Xunit" />
     <Using
