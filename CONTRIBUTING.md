@@ -34,7 +34,7 @@ dotnet test tests/KeepClip.Tests -c Release --arch x64 --no-restore
 dotnet test tests/KeepClip.Windows.Tests -c Release --arch x64 --no-restore
 ```
 
-For changes affecting native interop or architecture-dependent behavior, also run the x86 tests when the matching runtime is available. CI runs both architectures.
+For changes affecting native interop or architecture-dependent behavior, also run the x86 tests when the matching runtime is available.
 
 Add or update tests for changed behavior. Prefer regression cases and observable outcomes over tests that repeat the implementation or framework behavior. Avoid duplicate tests for the same failure boundary.
 
@@ -45,7 +45,6 @@ For changes to packaging or release validation, run the relevant scripts:
 ```powershell
 ./scripts/Test-Versioning.ps1
 ./scripts/Test-StoreVersion.ps1
-./scripts/Test-Release.ps1
 ```
 
 ## Commits and review
@@ -60,5 +59,3 @@ Use focused Conventional Commits, including the PR title when squash merging:
 GitVersion calculates the next version from history and release tags. Multiple commits before a release use the highest requested increment; each development commit advances the build counter. Release tags fix the stable version. Keep the same conventions in merge and squash messages so the intent survives integration.
 
 All review conversations must be resolved before merging. New changes may require another approval. Do not include generated build outputs, certificates, credentials, or unrelated edits.
-
-Repository administrators can use the separate [branch protection configuration](.github/BRANCH_PROTECTION.md) to enforce this policy on GitHub.
