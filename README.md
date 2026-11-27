@@ -23,10 +23,9 @@ See the [release notes](CHANGELOG.md) for new features and fixes.
 
 - [Get KeepClip from Microsoft Store](https://apps.microsoft.com/detail/9pjtns091173?ocid=webpdpshare)
 
-- [Portable builds for x64, ARM64, and x86](https://github.com/gdetra/KeepClip/actions/workflows/windows-release.yml)
-- [Browse published versions](https://github.com/gdetra/KeepClip/releases)
+- [Portable builds for x64, ARM64, and x86](https://github.com/gdetra/KeepClip/releases)
 
-Portable build artifacts require GitHub sign-in. Select a successful portable run and download the artifact for your architecture. Extract the included ZIP completely and run `KeepClip.exe`, keeping all extracted files together.
+Extract the ZIP completely and run `KeepClip.exe`, keeping all extracted files together.
 
 ## Build from source
 
@@ -45,14 +44,6 @@ dotnet tool restore
 dotnet restore KeepClip.slnx --locked-mode
 dotnet build src/KeepClip.App/KeepClip.App.csproj -c Release -p:Platform=x64 --no-restore
 ```
-
-To create a self-contained portable build:
-
-```powershell
-./scripts/Build-Portable.ps1 -Architecture x64
-```
-
-`-Architecture` accepts `x64`, `arm64`, or `x86`. The script prints the generated archive path. Extract the archive and launch `KeepClip.exe`.
 
 ### Run tests
 

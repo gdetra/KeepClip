@@ -1,22 +1,17 @@
 name: Windows CI
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
   pull_request:
     branches: [main]
-  workflow_dispatch:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: windows-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: windows-ci-${{ github.ref }}
+  queue: max
 
 defaults:
   run:
@@ -27,68 +22,13 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-  formatting:
-    name: Formatting
+  version:
+    name: Version
     runs-on: windows-2025-vs2026
     timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-dotnet@v5
-        with:
-          global-json-file: global.json
-      - name: Restore locked dependencies
-        run: dotnet restore KeepClip.slnx --locked-mode
-      - name: Compile WinUI and run its analyzer
-        run: dotnet build src/KeepClip.App/KeepClip.App.csproj -c Release -p:Platform=x64 --no-restore
-      - name: Check C# formatting and braces
-        run: ./scripts/Format-Code.ps1 -Check
-      - name: Check XAML and XML formatting
-        run: ./scripts/Format-Markup.ps1 -Check
-      - name: Verify code style regressions
-        run: ./scripts/Test-CodeStyle.ps1
-
-  test:
-    name: Tests (${{ matrix.architecture }})
-    runs-on: windows-2025-vs2026
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        architecture: [x64, x86]
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Install .NET SDK and matching test runtime
-        uses: actions/setup-dotnet@v5
-        with:
-          global-json-file: global.json
-          architecture: ${{ matrix.architecture }}
-          cache: true
-          cache-dependency-path: '**/packages.lock.json'
-      - name: Restore application tests with locked dependencies
-        run: dotnet restore tests/KeepClip.Tests --locked-mode
-      - name: Run application and native ABI tests
-        run: dotnet test tests/KeepClip.Tests -c Release --arch ${{ matrix.architecture }} --no-restore --logger trx --results-directory TestResults/application
-      - name: Restore Windows tests with locked dependencies
-        run: dotnet restore tests/KeepClip.Windows.Tests --locked-mode
-      - name: Run Windows tests
-        run: dotnet test tests/KeepClip.Windows.Tests -c Release --arch ${{ matrix.architecture }} --no-restore --logger trx --results-directory TestResults/windows
-      - name: Upload test reports
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: test-results-${{ matrix.architecture }}
-          path: TestResults/**/*.trx
-          if-no-files-found: warn
-          retention-days: 14
-
-  validation:
-    name: Release and packaging script checks
-    runs-on: windows-2025-vs2026
-    timeout-minutes: 10
+    outputs:
+      semver: ${{ steps.version.outputs.semver }}
+      metadata: ${{ steps.version.outputs.metadata }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -97,18 +37,129 @@ jobs:
         with:
           global-json-file: global.json
           dotnet-version: '8.0.x'
-      - name: Restore pinned GitVersion tool
-        run: dotnet tool restore
-      - name: Verify version metadata and Store version rules
+      - name: Calculate the build version
+        id: version
         run: |
-          ./scripts/Test-Versioning.ps1
-          ./scripts/Test-StoreVersion.ps1
-      - name: Verify GitVersion history and release guards
-        run: |
-          ./scripts/Test-GitVersion.ps1
-          ./scripts/Test-Release.ps1
-      - name: Verify portable integrity checks
-        run: |
-          foreach ($architecture in @('x64', 'arm64', 'x86')) {
-            ./scripts/Test-PortablePackage.ps1 -FixturesDirectory ./artifacts/package-tests -Architecture $architecture
+          dotnet tool restore
+          if ($LASTEXITCODE -ne 0) { throw 'GitVersion tool restore failed.' }
+          $version = ./scripts/Get-Version.ps1
+          if ($version.Sha -cne $env:GITHUB_SHA) { throw 'Version does not match the workflow commit.' }
+          if ($env:GITHUB_EVENT_NAME -eq 'push') {
+            # Match GitVersion's stable tag weight before the tag exists.
+            $version.AssemblySemFileVer = "$($version.SemVer).60000"
           }
+          "semver=$($version.SemVer)" >> $env:GITHUB_OUTPUT
+          "metadata=$($version | ConvertTo-Json -Compress)" >> $env:GITHUB_OUTPUT
+
+  build:
+    name: Build (${{ matrix.architecture }})
+    needs: version
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [x64, arm64, x86]
+    env:
+      ARCHITECTURE: ${{ matrix.architecture }}
+      RELEASE_VERSION: ${{ needs.version.outputs.semver }}
+      VERSION_METADATA: ${{ needs.version.outputs.metadata }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - name: Restore locked dependencies
+        run: dotnet restore src/KeepClip.App/KeepClip.App.csproj -p:Platform=$env:ARCHITECTURE --locked-mode
+      - name: Publish KeepClip
+        run: |
+          $env:VERSION_METADATA | Set-Content ./KeepClip.version.json -Encoding utf8
+          ./scripts/Publish-App.ps1 -Architecture $env:ARCHITECTURE -NoRestore -PublishDirectory ./artifacts/publish -VersionFile ./KeepClip.version.json
+      - name: Verify portable payload
+        run: |
+          . ./scripts/PortablePackage.ps1
+          Write-KeepClipPackageManifest -Directory ./artifacts/publish -Architecture $env:ARCHITECTURE
+          $problems = @(Test-KeepClipPackage -Directory ./artifacts/publish)
+          if ($problems.Count -gt 0) { throw ($problems -join [Environment]::NewLine) }
+      - name: Create portable ZIP
+        if: github.event_name == 'push'
+        run: |
+          $archive = "./artifacts/KeepClip-$env:RELEASE_VERSION-windows-$env:ARCHITECTURE.zip"
+          Compress-Archive -Path ./artifacts/publish/* -DestinationPath $archive
+      - uses: actions/upload-artifact@v6
+        if: github.event_name == 'push'
+        with:
+          name: portable-${{ matrix.architecture }}
+          path: artifacts/*.zip
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: true
+
+  release:
+    name: Publish portable release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@v6
+        with:
+          pattern: portable-*
+          path: packages
+          merge-multiple: true
+      - name: Publish ZIPs and create the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.version.outputs.semver }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          $tag = "v$env:RELEASE_VERSION"
+          if ($tag -cnotmatch '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
+            throw "Invalid release tag: $tag"
+          }
+          $tagCommit = git rev-parse --verify --quiet "refs/tags/${tag}^{commit}"
+          if ($tagCommit -and $tagCommit -cne $env:GITHUB_SHA) {
+            throw "$tag already points to a different commit."
+          }
+
+          $releaseJson = gh release view $tag --json isDraft,targetCommitish
+          if ($LASTEXITCODE -eq 0) {
+            $release = $releaseJson | ConvertFrom-Json
+            if (-not $tagCommit -and $release.targetCommitish -cne $env:GITHUB_SHA) {
+              throw "Release $tag targets a different commit."
+            }
+            if (-not $release.isDraft) {
+              Write-Output "$tag is already published."
+              return
+            }
+          }
+
+          $archives = foreach ($architecture in @('x64', 'arm64', 'x86')) {
+            Get-Item -LiteralPath "./packages/KeepClip-$env:RELEASE_VERSION-windows-$architecture.zip"
+          }
+          $checksums = './packages/SHA256SUMS.txt'
+          $archives | ForEach-Object {
+            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          } | Set-Content -LiteralPath $checksums -Encoding utf8
+          $assets = @($archives.FullName) + $checksums
+
+          if (-not $release) {
+            gh release create $tag --target $env:GITHUB_SHA --generate-notes --draft
+            if ($LASTEXITCODE -ne 0) { throw "Could not create draft release $tag." }
+          }
+          gh release upload $tag @assets --clobber
+          if ($LASTEXITCODE -ne 0) { throw "Could not upload all assets for $tag." }
+          gh release edit $tag --draft=false
+          if ($LASTEXITCODE -ne 0) { throw "Could not publish $tag." }
